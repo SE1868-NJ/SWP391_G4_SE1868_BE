@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const { getShippers, addShipper } = require("./controllers/manageshipper");
+const { getShippers, addShipper, getShipperById } = require("./controllers/manageshipper");
 const { loginShipper } = require("./controllers/Login");
 
 const app = express();
@@ -15,9 +15,12 @@ app.use(express.json());
 
 app.get("/api/shippers", getShippers);
 
+app.get("/api/shippers/:shipperId", getShipperById); 
+
 app.post("/api/shippers", addShipper);
 
 app.post("/api/login", loginShipper);
+
 
 const PORT = 5000;
 app.listen(PORT, () => {
