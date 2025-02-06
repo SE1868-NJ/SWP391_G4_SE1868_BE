@@ -1,6 +1,5 @@
-const db = require("../config/DBConnect");  // Kết nối cơ sở dữ liệu
+const db = require("../config/DBConnect");  
 
-// API: Lấy danh sách shipper
 const getShippers = (req, res) => {
   const sql = "SELECT * FROM shippers";
   db.query(sql, (err, results) => {
@@ -11,7 +10,6 @@ const getShippers = (req, res) => {
   });
 };
 
-// API: Thêm shipper mới
 const addShipper = (req, res) => {
   const { FullName, PhoneNumber, Email, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status = "Active" } = req.body;
 
