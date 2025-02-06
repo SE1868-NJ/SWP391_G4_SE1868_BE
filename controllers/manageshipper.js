@@ -13,7 +13,13 @@ const getShippers = (req, res) => {
 
 // API: Thêm shipper mới
 const addShipper = (req, res) => {
-  const { FullName, PhoneNumber, Email, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status = "Active" } = req.body;
+  console.log("Request body:", req.body);
+  const { FullName, PhoneNumber, Email, Password, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status = "Active" } = req.body;
+
+// Kiểm tra các trường bắt buộc
+if (!FullName || !PhoneNumber || !Email || !Password) {
+  return res.status(400).json({ error: "FullName, PhoneNumber, Email, and Password are required" });
+}
 
   const sql = `
     INSERT INTO Shippers (FullName, PhoneNumber, Email, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status)
@@ -22,17 +28,21 @@ const addShipper = (req, res) => {
 
   db.query(sql, [FullName, PhoneNumber, Email, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status], (err, result) => {
     if (err) {
-      return res.status(500).send(err.message);
+      return res.status(500).json({ error: "Database error: " + err.message });
     }
     res.json({ message: "Shipper added successfully!", ShipperID: result.insertId });
   });
 };
 
+
 // API: Cập nhật shipper (cập nhật nhiều trường cùng lúc)
 const updateShipper = (req, res) => {
-  const { ShipperID, FullName, PhoneNumber, Email, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status } = req.body;
+  const { ShipperID, FullName, PhoneNumber, Email, Password, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status } = req.body;
 
-  // Câu lệnh SQL động để cập nhật các trường có giá trị
+  if (!ShipperID) {
+    return res.status(400).json({ error: "ShipperID is required for updating" });
+  }
+
   let sql = "UPDATE Shippers SET ";
   let values = [];
 
@@ -47,6 +57,10 @@ const updateShipper = (req, res) => {
   if (Email) {
     sql += "Email = ?, ";
     values.push(Email);
+  }
+  if (Password) {  // Thêm kiểm tra trường Password
+    sql += "Password = ?, ";
+    values.push(Password);
   }
   if (DateOfBirth) {
     sql += "DateOfBirth = ?, ";
@@ -69,18 +83,23 @@ const updateShipper = (req, res) => {
     values.push(Status);
   }
 
-  // Loại bỏ dấu phẩy thừa ở cuối câu lệnh SQL
-  sql = sql.slice(0, -2);  // Xóa dấu phẩy cuối cùng
+  // Nếu không có trường nào cần cập nhật, báo lỗi
+  if (values.length === 0) {
+    return res.status(400).json({ error: "At least one field is required for updating" });
+  }
 
-  sql += " WHERE ShipperID = ?";  // Thêm điều kiện WHERE để xác định shipper nào cần cập nhật
+  sql = sql.slice(0, -2);  // Xóa dấu phẩy cuối
+  sql += " WHERE ShipperID = ?";
   values.push(ShipperID);
 
   db.query(sql, values, (err, result) => {
     if (err) {
-      return res.status(500).send(err.message);
+      return res.status(500).json({ error: "Database error: " + err.message });
     }
     res.json({ message: "Shipper updated successfully!" });
   });
 };
+
+
 
 module.exports = { getShippers, addShipper, updateShipper };
