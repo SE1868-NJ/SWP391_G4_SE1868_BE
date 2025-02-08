@@ -14,19 +14,36 @@ const getShippers = (req, res) => {
 // API: Thêm shipper mới
 const addShipper = (req, res) => {
   console.log("Request body:", req.body);
-  const { FullName, PhoneNumber, Email, Password, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status = "Active" } = req.body;
+  const { FullName, PhoneNumber, Email, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status = "Active", Password } = req.body;
 
 // Kiểm tra các trường bắt buộc
 if (!FullName || !PhoneNumber || !Email || !Password) {
   return res.status(400).json({ error: "FullName, PhoneNumber, Email, and Password are required" });
 }
+const checkExistQuery = `SELECT * FROM Shippers WHERE PhoneNumber = ? OR Email = ?`;
+
+  db.query(checkExistQuery, [PhoneNumber, Email], (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: "" + err.message });
+    }
+
+    if (results.length > 0) {
+      const existing = results[0];
+      if (existing.PhoneNumber === PhoneNumber) {
+        return res.status(400).json({ error: "PhoneNumber đã được sử dụng" });
+      }
+      if (existing.Email === Email) {
+        return res.status(400).json({ error: "Email đã được sử dụng" });
+      }
+    }
+  });
 
   const sql = `
-    INSERT INTO Shippers (FullName, PhoneNumber, Email, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO Shippers (FullName, PhoneNumber, Email, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status, Password)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
-  db.query(sql, [FullName, PhoneNumber, Email, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status], (err, result) => {
+  db.query(sql, [FullName, PhoneNumber, Email, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status, Password], (err, result) => {
     if (err) {
       return res.status(500).json({ error: "Database error: " + err.message });
     }
@@ -58,7 +75,7 @@ const updateShipper = (req, res) => {
     sql += "Email = ?, ";
     values.push(Email);
   }
-  if (Password) {  // Thêm kiểm tra trường Password
+  if (Password) {  
     sql += "Password = ?, ";
     values.push(Password);
   }
