@@ -26,4 +26,17 @@ const addShipper = (req, res) => {
   });
 };
 
-module.exports = { getShippers, addShipper };
+const getShipperById = (req, res) => {
+  let ShipperID = req.query.id;
+  const sql = "SELECT * FROM swp_shipper.shippers where ShipperID = ?";
+  db.query(sql, [ShipperID], (err, results) => {
+    if (err) {
+      return res.status(500).send(err.message);
+    }
+    if (results.length === 0) {
+      return res.status(404).send("Shipper not found");
+    }
+    res.json({shipper : results[0]});
+  });
+}
+module.exports = { getShippers, addShipper, getShipperById };
