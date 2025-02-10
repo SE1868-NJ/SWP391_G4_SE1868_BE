@@ -1,21 +1,26 @@
 const express = require("express");
 const cors = require("cors");
-const { getShippers, addShipper, getShipperById } = require("./controllers/manageshipper");
+const { getShippers, addShipper } = require("./controllers/manageshipper");
+const { getShipperById, updateShipper, deleteShipper } = require("./controllers/ShipperAccount");
 const { loginShipper } = require("./controllers/Login");
-
 const app = express();
 
 app.use(cors({
   origin: "http://localhost:3000", 
   credentials: true,
-  methods: ["GET", "POST"], 
+  methods: ["GET", "POST", "PUT", "DELETE"], 
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(express.json());
 
+
 app.get("/api/shippers", getShippers);
 
-app.get("/api/shippers/:shipperId", getShipperById); 
+app.get("/api/shippers/:shipperId", getShipperById);
+
+app.put("/api/shippers/:shipperId", updateShipper);
+
+app.delete("/api/shippers/:shipperId", deleteShipper);
 
 app.post("/api/shippers", addShipper);
 
