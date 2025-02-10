@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const { getShippers, addShipper } = require("./controllers/manageshipper");
+const { getShippers, addShipper } = require("./controllers/Manageshipper");
 const { loginShipper } = require("./controllers/Login");
 
 const app = express();
@@ -12,7 +12,7 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(express.json());
-
+  
 app.get("/api/shippers", getShippers);
 
 app.post("/api/shippers", addShipper);
