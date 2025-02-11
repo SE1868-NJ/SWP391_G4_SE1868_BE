@@ -172,9 +172,51 @@ const updateShipper = (req, res) => {
     res.json({ message: "Shipper updated successfully!" });
   });
 };
+// API: Tìm kiếm shipper đã duyệt
+const searchApprovedShippers = (req, res) => {
+  const { query } = req.query;
+  
+  if (!query) {
+    return res.status(400).json({ error: "Search query is required" });
+  }
+
+  const sql = `
+    SELECT * FROM Shippers 
+    WHERE FullName LIKE ? OR PhoneNumber LIKE ? OR Email LIKE ?
+  `;
+
+  const searchQuery = `%${query}%`;
+
+  db.query(sql, [searchQuery, searchQuery, searchQuery], (err, results) => {
+    if (err) {
+      return res.status(500).send(err.message);
+    }
+    res.json(results);
+  });
+};
+
+// API: Tìm kiếm shipper đang chờ duyệt
+const searchPendingShippers = (req, res) => {
+  const { query } = req.query;
+
+  if (!query) {
+    return res.status(400).json({ error: "Search query is required" });
+  }
+
+  const sql = `
+    SELECT * FROM shipper_registration
+    WHERE FullName LIKE ? OR PhoneNumber LIKE ? OR Email LIKE ?
+  `;
+
+  const searchQuery = `%${query}%`;
+
+  db.query(sql, [searchQuery, searchQuery, searchQuery], (err, results) => {
+    if (err) {
+      return res.status(500).send(err.message);
+    }
+    res.json(results);
+  });
+};
 
 
-
-
-
-module.exports = { getApprovedShippers, getPendingShippers, approveShipper, rejectShipper, updateShipper };
+module.exports = { getApprovedShippers, getPendingShippers, approveShipper, rejectShipper, updateShipper, searchApprovedShippers, searchPendingShippers };
