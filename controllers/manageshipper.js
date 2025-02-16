@@ -217,6 +217,32 @@ const searchPendingShippers = (req, res) => {
     res.json(results);
   });
 };
+// API: Xóa shipper
+const deleteShipper = (req, res) => {
+  const { id } = req.body;
+
+  if (!id) {
+    return res.status(400).json({ error: "ShipperID is required for deletion" });
+  }
+
+  const sql = "DELETE FROM Shippers WHERE ShipperID = ?";
+
+  db.query(sql, [id], (err, result) => {
+    if (err) {
+      console.error("❌ Error while deleting shipper:", err); // Thêm dòng này để log chi tiết lỗi
+      return res.status(500).send("Database error: " + err.message);
+    }
+
+    if (result.affectedRows === 0) {
+      console.log(`⚠️ No shipper found with ID: ${id}`); // Log khi không tìm thấy shipper để xóa
+      return res.status(404).json({ error: "No shipper found with this ShipperID" });
+    }
+
+    console.log(`✅ Shipper with ID: ${id} deleted successfully!`);
+    res.json({ message: "Shipper deleted successfully!" });
+  });
+};
 
 
-module.exports = { getApprovedShippers, getPendingShippers, approveShipper, rejectShipper, updateShipper, searchApprovedShippers, searchPendingShippers };
+
+module.exports = { getApprovedShippers, getPendingShippers, approveShipper, rejectShipper, updateShipper, searchApprovedShippers, searchPendingShippers, deleteShipper };

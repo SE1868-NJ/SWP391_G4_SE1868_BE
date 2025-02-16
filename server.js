@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const {getApprovedShippers,getPendingShippers,approveShipper,rejectShipper,updateShipper,searchApprovedShippers,searchPendingShippers} = require("./controllers/manageshipper");
+const {getApprovedShippers,getPendingShippers,approveShipper,rejectShipper,updateShipper,searchApprovedShippers,searchPendingShippers,deleteShipper} = require("./controllers/manageshipper");
 
 const app = express();
 
@@ -26,6 +26,8 @@ app.put("/api/update-shipper", updateShipper);
 // API tìm kiếm shipper
 app.get("/api/search-approved-shippers", searchApprovedShippers);
 app.get("/api/search-pending-shippers", searchPendingShippers);
+// API: Xóa shipper
+app.post("/api/delete-shipper", deleteShipper);
 // Chạy server
 const PORT = 5000;
 app.listen(PORT, () => {
