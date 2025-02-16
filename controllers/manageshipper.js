@@ -4,117 +4,112 @@ const getShippers = (req, res) => {
   const sql = "SELECT * FROM shippers";
   db.query(sql, (err, results) => {
     if (err) {
-      return res.status(500).send(err.message);
+      console.error('Error fetching shippers:', err);
+      return res.status(500).json({ 
+        success: false, 
+        message: "Server error retrieving shippers" 
+      });
     }
     res.json(results);
   });
 };
 
 const addShipper = (req, res) => {
-  console.log("Request body:", req.body);
-  const { FullName, PhoneNumber, Email, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status = "Active", Password } = req.body;
-
-// Kiểm tra các trường bắt buộc
-if (!FullName || !PhoneNumber || !Email || !Password) {
-  return res.status(400).json({ error: "FullName, PhoneNumber, Email, and Password are required" });
-}
-const checkExistQuery = `SELECT * FROM Shippers WHERE PhoneNumber = ? OR Email = ?`;
-
-  db.query(checkExistQuery, [PhoneNumber, Email], (err, results) => {
-    if (err) {
-      return res.status(500).json({ error: "" + err.message });
-    }
-
-    if (results.length > 0) {
-      const existing = results[0];
-      if (existing.PhoneNumber === PhoneNumber) {
-        return res.status(400).json({ error: "PhoneNumber đã được sử dụng" });
-      }
-      if (existing.Email === Email) {
-        return res.status(400).json({ error: "Email đã được sử dụng" });
-      }
-    }
-  });
+  const { 
+    FullName, 
+    PhoneNumber, 
+    Email, 
+    DateOfBirth, 
+    Address, 
+    BankAccountNumber, 
+    VehicleDetails, 
+    Status = "Active" 
+  } = req.body;
 
   const sql = `
-    INSERT INTO Shippers (FullName, PhoneNumber, Email, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status, Password)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO Shippers (
+      FullName, 
+      PhoneNumber, 
+      Email, 
+      DateOfBirth, 
+      Address, 
+      BankAccountNumber, 
+      VehicleDetails, 
+      Status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
-  db.query(sql, [FullName, PhoneNumber, Email, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status, Password], (err, result) => {
-    if (err) {
-      return res.status(500).json({ error: "Database error: " + err.message });
+  db.query(
+    sql, 
+    [
+      FullName, 
+      PhoneNumber, 
+      Email, 
+      DateOfBirth, 
+      Address, 
+      BankAccountNumber, 
+      VehicleDetails, 
+      Status
+    ], 
+    (err, result) => {
+      if (err) {
+        console.error('Error adding shipper:', err);
+        return res.status(500).json({ 
+          success: false, 
+          message: "Failed to add shipper" 
+        });
+      }
+      
+      res.status(201).json({ 
+        success: true,
+        message: "Shipper added successfully!", 
+        ShipperID: result.insertId 
+      });
     }
-    res.json({ message: "Shipper added successfully!", ShipperID: result.insertId });
-  });
+  );
 };
 
+const getShipperById = (req, res) => {
+  const ShipperID = req.query.id;
 
-// API: Cập nhật shipper (cập nhật nhiều trường cùng lúc)
-const updateShipper = (req, res) => {
-  const { ShipperID, FullName, PhoneNumber, Email, Password, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status } = req.body;
-
+  // Validate input
   if (!ShipperID) {
-    return res.status(400).json({ error: "ShipperID is required for updating" });
+    return res.status(400).json({ 
+      success: false, 
+      message: "ShipperID is required" 
+    });
   }
 
-  let sql = "UPDATE Shippers SET ";
-  let values = [];
-
-  if (FullName) {
-    sql += "FullName = ?, ";
-    values.push(FullName);
-  }
-  if (PhoneNumber) {
-    sql += "PhoneNumber = ?, ";
-    values.push(PhoneNumber);
-  }
-  if (Email) {
-    sql += "Email = ?, ";
-    values.push(Email);
-  }
-  if (Password) {  
-    sql += "Password = ?, ";
-    values.push(Password);
-  }
-  if (DateOfBirth) {
-    sql += "DateOfBirth = ?, ";
-    values.push(DateOfBirth);
-  }
-  if (Address) {
-    sql += "Address = ?, ";
-    values.push(Address);
-  }
-  if (BankAccountNumber) {
-    sql += "BankAccountNumber = ?, ";
-    values.push(BankAccountNumber);
-  }
-  if (VehicleDetails) {
-    sql += "VehicleDetails = ?, ";
-    values.push(VehicleDetails);
-  }
-  if (Status) {
-    sql += "Status = ?, ";
-    values.push(Status);
-  }
-
-  // Nếu không có trường nào cần cập nhật, báo lỗi
-  if (values.length === 0) {
-    return res.status(400).json({ error: "At least one field is required for updating" });
-  }
-
-  sql = sql.slice(0, -2);  // Xóa dấu phẩy cuối
-  sql += " WHERE ShipperID = ?";
-  values.push(ShipperID);
-
-  db.query(sql, values, (err, result) => {
+  const sql = "SELECT * FROM shippers WHERE ShipperID = ?";
+  
+  db.query(sql, [ShipperID], (err, results) => {
     if (err) {
-      return res.status(500).json({ error: "Database error: " + err.message });
+      console.error('Database error fetching shipper:', err);
+      return res.status(500).json({ 
+        success: false, 
+        message: "Server error retrieving shipper" 
+      });
     }
-    res.json({ message: "Shipper updated successfully!" });
+
+    if (results.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Shipper not found" 
+      });
+    }
+
+    // Remove sensitive information before sending
+    const { Password, ...shipperData } = results[0];
+    
+    res.json({
+      success: true,
+      shipper: shipperData
+    });
   });
 };
 
-
-
-module.exports = { getShippers, addShipper, updateShipper };
+module.exports = { 
+  getShippers, 
+  addShipper, 
+  getShipperById 
+};

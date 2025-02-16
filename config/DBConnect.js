@@ -3,7 +3,7 @@ const mysql = require("mysql2");
 const db = mysql.createConnection({
   host: "localhost",         // Địa chỉ host MySQL (hoặc IP)
   user: "root",              // Tên người dùng MySQL
-  password: "YES", // Mật khẩu MySQL
+  password: "Cong@03012004", // Mật khẩu MySQL
   database: "swp_shipper",   // Tên database
 });
 
