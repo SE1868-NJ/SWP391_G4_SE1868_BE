@@ -8,6 +8,7 @@ const {
 const { loginShipper } = require("./controllers/Login");
 const { forgotPassword, resetPassword } = require("./controllers/ForgotPassword");
 const { getOrders, changeStatusOrder } = require("./controllers/Order");
+const { updateShipper } = require("./controllers/ShipperAccount");
 
 const app = express();
 
@@ -15,7 +16,7 @@ const app = express();
 app.use(cors({
   origin: "http://localhost:3000", 
   credentials: true,
-  methods: ["GET", "POST", "PUT", "OPTIONS"], 
+  methods: ["GET", "POST", "PUT", "OPTIONS", "Delete"], 
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
@@ -38,6 +39,8 @@ app.post("/api/forgot-password", forgotPassword);
 app.post("/api/reset-password", resetPassword);
 app.get("/api/getOrders", getOrders);
 app.post("/api/changeStatusOrder", changeStatusOrder);
+
+app.put("/api/shippers/:id", updateShipper);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
