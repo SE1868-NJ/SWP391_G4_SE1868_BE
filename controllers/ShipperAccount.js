@@ -1,5 +1,4 @@
 import db from "../config/DBConnect.js";
-// Thêm route để lấy thông tin shipper theo ShipperID
 const getShipperById = (req, res) => {
     const shipperId = req.params.shipperId;
     const sql = "SELECT * FROM shippers WHERE ShipperID = ?";
