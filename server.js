@@ -1,8 +1,8 @@
 const express = require("express");
 const cors = require("cors");
-const { getActiveShippers, getPendingRegisterShippers, approveShipper, rejectShipper, updateShipper, searchApprovedShippers, searchPendingShippers, getShippers, addShipper, getShipperById } = require("./controllers/manageshipper");
+const { getShippers, getPendingRegisterShippers, approveShipper,rejectRegisterShipper, searchApprovedShippers, searchPendingShippers, getUpdatingShippers, getCancelingShippers, approveUpdateShipper, approveCancelShipper } = require("./controllers/manageshipper");
 const { loginShipper } = require("./controllers/Login");
-const { forgotPassword, resetPassword } = require("./controllers/ForgotPassword");
+// const { forgotPassword, resetPassword } = require("./controllers/Password");
 const { getOrders, changeStatusOrder } = require("./controllers/Order");
 const { updateShipper } = require("./controllers/ShipperAccount");
 
@@ -29,29 +29,30 @@ app.use((req, res, next) => {
 
 // Routes
 app.get("/api/shippers", getShippers);
-app.post("/api/shippers", addShipper);
-app.get("/api/getShipperById", getShipperById);
 app.post("/api/login", loginShipper);
-app.post("/api/forgot-password", forgotPassword);
-app.post("/api/reset-password", resetPassword);
+// app.post("/api/forgot-password", forgotPassword);
+// app.post("/api/reset-password", resetPassword);
 app.get("/api/getOrders", getOrders);
 app.post("/api/changeStatusOrder", changeStatusOrder);
 
 app.put("/api/shippers/:id", updateShipper);
-// API: Lấy danh sách shipper đã được duyệt
-app.get("/api/active-shippers", getActiveShippers);
-
-// API: Lấy danh sách shipper đang chờ duyệt
+// API: Lấy danh sách shipper đang chờ duyệt đăng ký
 app.get("/api/pending-register-shippers", getPendingRegisterShippers);
 
+// API: Lấy danh sách shipper đang chờ duyệt cập nhật
+app.get("/api/pending-update-shippers", getUpdatingShippers);
+
+// API: Lấy danh sách shipper đang chờ duyệt hủy tài khoản
+app.get("/api/pending-cancel-shippers", getCancelingShippers);
+
+// API: Lấy danh sách shipper đã duyệt (Active)
+app.get("/api/active-shippers", getShippers);
 // API: Duyệt shipper
 app.post("/api/approve-shipper", approveShipper);
 
 // API: Từ chối shipper
-app.post("/api/reject-shipper", rejectShipper);
+app.post("/api/reject-shipper", rejectRegisterShipper);
 
-// API: Update thông tin shipper
-app.put("/api/update-shipper", updateShipper);
 
 // API tìm kiếm shipper
 app.get("/api/search-approved-shippers", searchApprovedShippers);
