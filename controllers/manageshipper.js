@@ -1,8 +1,8 @@
 const db = require("../config/DBConnect");  // Kết nối cơ sở dữ liệu
 
-// API: Lấy danh sách shipper đã được duyệt
-const getApprovedShippers = (req, res) => {
-  const sql = "SELECT * FROM Shippers";
+// API: Lấy danh sách shipper
+const getActiveShippers = (req, res) => {
+  const sql = "SELECT * FROM Shippers where Status = 'Active'or Status = 'Inactive'";
   db.query(sql, (err, results) => {
     if (err) {
       return res.status(500).send(err.message);
@@ -10,10 +10,29 @@ const getApprovedShippers = (req, res) => {
     res.json(results);
   });
 };
-
+// API: Lấy danh sách shipper đang chờ duyệt update
+const getUpdatingShippers = (req, res) => {
+  const sql = "SELECT * FROM Shippers where Status = 'PendingUpdate'";
+  db.query(sql, (err, results) => {
+    if (err) {
+      return res.status(500).send(err.message);
+    }
+    res.json(results);
+  });
+};
+// API: Lấy danh sách shipper đang chờ duyệt hủy tài khoản
+const getCancelingShippers = (req, res) => {
+  const sql = "SELECT * FROM Shippers where Status = 'PendingCancel'";
+  db.query(sql, (err, results) => {
+    if (err) {
+      return res.status(500).send(err.message);
+    }
+    res.json(results);
+  });
+};
 // API: Lấy danh sách shipper đang chờ duyệt
-const getPendingShippers = (req, res) => {
-  const sql = "SELECT * FROM shipper_registration WHERE RegistrationStatus = 'pending'";
+const getPendingRegisterShippers = (req, res) => {
+  const sql = "SELECT * FROM Shippers WHERE Status = 'PendingRegister'";
   db.query(sql, (err, results) => {
     if (err) {
       return res.status(500).send(err.message);
@@ -66,9 +85,8 @@ const getPendingShippers = (req, res) => {
 const approveShipper = (req, res) => {
   const { id } = req.body;
   const insertSQL = `
-  INSERT INTO Shippers (FullName, PhoneNumber, Email, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status, Password)
-  SELECT FullName, PhoneNumber, Email, DateOfBirth, Address, BankAccountNumber, VehicleDetails, 'Active', Password
-  FROM shipper_registration WHERE id = ?`;
+  INSERT INTO Shippers (FullName, PhoneNumber, Email, DateOfBirth, HouseNumber, Ward, District, City, BankName, BankAccountNumber, VehicleType, LicensePlate, LicenseNumber, RegistrationVehicle, ExpiryVehicle, LicenseExpiryDate, DriverLicenseImage, VehicleRegistrationImage, CitizenID, Status, RegistrationDate, TotalRatings, AverageRating, BonusAmount, LastBonusDate, IDCardImage, Password)
+Select*from shipper_registration where id=?`;
   const deleteSQL = "DELETE FROM shipper_registration WHERE id = ?";
   
   db.query(insertSQL, [id], (err) => {
@@ -87,7 +105,7 @@ const approveShipper = (req, res) => {
 // API: Từ chối shipper
 const rejectShipper = (req, res) => {
   const { id } = req.body;
-  const sql = "UPDATE shipper_registration SET RegistrationStatus = 'rejected' WHERE id = ?";
+  const sql = "UPDATE shipper_registration SET Status = 'rejected' WHERE id = ?";
   
   db.query(sql, [id], (err) => {
     if (err) {
@@ -217,32 +235,6 @@ const searchPendingShippers = (req, res) => {
     res.json(results);
   });
 };
-// API: Xóa shipper
-const deleteShipper = (req, res) => {
-  const { id } = req.body;
-
-  if (!id) {
-    return res.status(400).json({ error: "ShipperID is required for deletion" });
-  }
-
-  const sql = "DELETE FROM Shippers WHERE ShipperID = ?";
-
-  db.query(sql, [id], (err, result) => {
-    if (err) {
-      console.error("❌ Error while deleting shipper:", err); // Thêm dòng này để log chi tiết lỗi
-      return res.status(500).send("Database error: " + err.message);
-    }
-
-    if (result.affectedRows === 0) {
-      console.log(`⚠️ No shipper found with ID: ${id}`); // Log khi không tìm thấy shipper để xóa
-      return res.status(404).json({ error: "No shipper found with this ShipperID" });
-    }
-
-    console.log(`✅ Shipper with ID: ${id} deleted successfully!`);
-    res.json({ message: "Shipper deleted successfully!" });
-  });
-};
 
 
-
-module.exports = { getApprovedShippers, getPendingShippers, approveShipper, rejectShipper, updateShipper, searchApprovedShippers, searchPendingShippers, deleteShipper };
+module.exports = { getActiveShippers, getPendingRegisterShippers, approveShipper, rejectShipper, updateShipper, searchApprovedShippers, searchPendingShippers, getUpdatingShippers, getCancelingShippers };
