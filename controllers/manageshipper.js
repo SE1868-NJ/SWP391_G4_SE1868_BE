@@ -1,7 +1,7 @@
-const db = require("../config/DBConnect");  // Kết nối cơ sở dữ liệu
+const db = require("../config/DBConnect");  
 
 // API: Lấy danh sách shipper
-const getActiveShippers = (req, res) => {
+const getShippers = (req, res) => {
   const sql = "SELECT * FROM Shippers where Status = 'Active'or Status = 'Inactive'";
   db.query(sql, (err, results) => {
     if (err) {
@@ -35,7 +35,11 @@ const getPendingRegisterShippers = (req, res) => {
   const sql = "SELECT * FROM Shippers WHERE Status = 'PendingRegister'";
   db.query(sql, (err, results) => {
     if (err) {
-      return res.status(500).send(err.message);
+      console.error('Error fetching shippers:', err);
+      return res.status(500).json({ 
+        success: false, 
+        message: "Server error retrieving shippers" 
+      });
     }
     res.json(results);
   });
@@ -122,7 +126,10 @@ const updateShipper = (req, res) => {
   const { ShipperID, FullName, PhoneNumber, Email, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status, Password } = req.body;
 
   if (!ShipperID) {
-    return res.status(400).json({ error: "ShipperID is required for updating" });
+    return res.status(400).json({ 
+      success: false, 
+      message: "ShipperID is required" 
+    });
   }
 
   let sql = "UPDATE Shippers SET ";
