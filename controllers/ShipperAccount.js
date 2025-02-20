@@ -1,154 +1,113 @@
-import db from "../config/DBConnect.js";
-// Thêm route để lấy thông tin shipper theo ShipperID
-const getShipperById = (req, res) => {
-    const shipperId = req.params.shipperId;
-    const sql = "SELECT * FROM shippers WHERE ShipperID = ?";
+const db = require('../config/DBConnect');
 
-    db.query(sql, [shipperId], (err, results) => {
-        if (err) {
-            return res.status(500).json({ message: "Lỗi truy vấn cơ sở dữ liệu" });
-        }
+const getShipperAccount = async (req, res) => {
+  try {
+    const shipperId = req.params.id;
+    if (!shipperId) {
+        return res.status(400).json({
+          success: false,
+          message: 'ShipperID is required'
+        });
+      }
+    const query = `
+      SELECT 
+        s.ShipperID,
+        s.FullName,
+        s.DateOfBirth,
+        s.PhoneNumber,
+        s.Email,
+        s.CitizenID,
+        s.VehicleType,
+        s.LicensePlate,
+        s.LicenseNumber,
+        s.LicenseExpiryDate,
+        s.ExpiryVehicle,
+        s.HouseNumber,
+        s.Ward,
+        s.District,
+        s.City,
+        s.BankName,
+        s.BankAccountNumber,
+        s.DriverLicenseImage,
+        s.VehicleRegistrationImage,
+        s.ImageShipper,
+        s.Status
+      FROM Shippers s
+      WHERE s.ShipperID = ?
+    `;
+      
+    db.query(query, [shipperId], (err, results) => {
+      if (err) {
+        console.error('Error fetching shipper data:', err);
+        return res.status(500).json({
+          success: false,
+          message: 'Lỗi khi lấy thông tin shipper'
+        });
+      }
 
-        if (results.length === 0) {
-            return res.status(404).json({ message: "Không tìm thấy thông tin shipper" });
-        }
+      if (results.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy thông tin shipper'
+        });
+      }
 
-        res.json(results[0]);
+      res.status(200).json({
+        success: true,
+        data: results[0]
+      });
     });
+  } catch (error) {
+    console.error('Server error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server'
+    });
+  }
 };
 
-const updateShipper = (req, res) => {
-    const shipperId = req.params.shipperId;
-    const {
-        FullName,
-        PhoneNumber,
-        Email,
-        DateOfBirth,
-        Address,
-        BankAccountNumber,
-        VehicleDetails
-    } = req.body;
-
-    console.log("Dữ liệu nhận được:", req.body);
-    console.log("ID Shipper:", shipperId);
-
-    const sql = `
-      UPDATE Shippers 
-      SET 
-        FullName = ?, 
-        PhoneNumber = ?, 
-        Email = ?, 
-        DateOfBirth = ?, 
-        Address = ?, 
-        BankAccountNumber = ?, 
-        VehicleDetails = ?
-      WHERE ShipperID = ?
-    `;
-
-    const values = [
-        FullName,
-        PhoneNumber,
-        Email,
-        DateOfBirth,
-        Address,
-        BankAccountNumber,
-        VehicleDetails,
-        shipperId
-    ];
-
-    db.query(sql, values, (err, result) => {
+const cancelShipperAccount = async (req, res) => {
+    try {
+      const shipperId = req.params.id;
+      const { reason } = req.body;  // Keep the reason, and set the status to 'PendingCancel'
+  
+      const query = `
+        UPDATE Shippers 
+        SET Status = 'PendingCancel', CancelReason = ? 
+        WHERE ShipperID = ?
+      `;
+  
+      db.query(query, [reason, shipperId], (err, result) => {
         if (err) {
-            console.error("Lỗi cơ sở dữ liệu:", err);
-            return res.status(500).json({
-                message: "Lỗi cập nhật thông tin",
-                error: err.message
-            });
+          console.error('Error canceling shipper account:', err);
+          return res.status(500).json({
+            success: false,
+            message: 'Lỗi khi hủy tài khoản'
+          });
         }
-
+  
         if (result.affectedRows === 0) {
-            return res.status(404).json({
-                message: "Không tìm thấy shipper để cập nhật"
-            });
+          return res.status(404).json({
+            success: false,
+            message: 'Không tìm thấy tài khoản shipper'
+          });
         }
-
-        res.json({
-            message: "Cập nhật thành công",
-            affectedRows: result.affectedRows
+  
+        res.status(200).json({
+          success: true,
+          message: 'Hủy tài khoản thành công, trạng thái đang chờ hủy'
         });
-    });
+      });
+    } catch (error) {
+      console.error('Server error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Lỗi server'
+      });
+    }
+  };
+
+module.exports = {
+  getShipperAccount,
+  cancelShipperAccount
 };
- const deleteShipper = (req, res) => {
-    const shipperId = req.params.shipperId;
-    const { reason } = req.body;
-
-    console.log(`Xóa tài khoản Shipper ID: ${shipperId}, Lý do: ${reason}`);
-
-    // Tạo bảng lưu lý do hủy tài khoản (tuỳ chọn)
-    const logReasonSql = `
-      INSERT INTO ShipperAccountCancellations 
-      (ShipperID, CancellationReason, CancellationDate) 
-      VALUES (?, ?, NOW())
-    `;
-
-    // Xóa tài khoản
-    const deleteShipperSql = 'DELETE FROM Shippers WHERE ShipperID = ?';
-
-    // Thực hiện xóa trong transaction
-    db.beginTransaction((err) => {
-        if (err) {
-            return res.status(500).json({
-                message: "Lỗi bắt đầu giao dịch",
-                error: err.message
-            });
-        }
-
-        // Lưu lý do hủy
-        db.query(logReasonSql, [shipperId, reason], (err) => {
-            if (err) {
-                return db.rollback(() => {
-                    res.status(500).json({
-                        message: "Lỗi ghi nhận lý do hủy",
-                        error: err.message
-                    });
-                });
-            }
-
-            // Thực hiện xóa tài khoản
-            db.query(deleteShipperSql, [shipperId], (err, result) => {
-                if (err) {
-                    return db.rollback(() => {
-                        res.status(500).json({
-                            message: "Không thể xóa tài khoản",
-                            error: err.message
-                        });
-                    });
-                }
-
-                // Commit transaction
-                db.commit((err) => {
-                    if (err) {
-                        return db.rollback(() => {
-                            res.status(500).json({
-                                message: "Lỗi hoàn tất giao dịch",
-                                error: err.message
-                            });
-                        });
-                    }
-
-                    // Kiểm tra số dòng bị ảnh hưởng
-                    if (result.affectedRows === 0) {
-                        return res.status(404).json({
-                            message: "Không tìm thấy tài khoản để xóa"
-                        });
-                    }
-
-                    res.json({
-                        message: "Xóa tài khoản thành công"
-                    });
-                });
-            });
-        });
-    });
-};
-
-export { getShipperById, updateShipper, deleteShipper };
