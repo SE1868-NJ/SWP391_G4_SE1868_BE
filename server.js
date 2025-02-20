@@ -1,10 +1,11 @@
 const express = require("express");
 const cors = require("cors");
-const { getShippers, getPendingRegisterShippers, approveShipper,rejectRegisterShipper, searchApprovedShippers, searchPendingShippers, getUpdatingShippers, getCancelingShippers, approveUpdateShipper, approveCancelShipper } = require("./controllers/manageshipper");
+const { getShippers, getPendingRegisterShippers, searchApprovedShippers, searchPendingShippers,changeShipperStatus ,getUpdatingShippers, getCancelingShippers, searchUpdatingShippers, searchCancelingShippers } = require("./controllers/manageshipper");
 const { loginShipper } = require("./controllers/Login");
 // const { forgotPassword, resetPassword } = require("./controllers/Password");
 const { getOrders, changeStatusOrder } = require("./controllers/Order");
 const { updateShipper } = require("./controllers/ShipperAccount");
+const {  getShipperDetails, rejectRegisterShipper, approveShipper } = require("./controllers/ShipperDetails");
 
 const app = express();
 
@@ -52,11 +53,20 @@ app.post("/api/approve-shipper", approveShipper);
 
 // API: Từ chối shipper
 app.post("/api/reject-shipper", rejectRegisterShipper);
-
-
+// API: Lấy thông tin chi tiết của shipper
+app.get("/api/shippers/:id", getShipperDetails);
 // API tìm kiếm shipper
 app.get("/api/search-approved-shippers", searchApprovedShippers);
 app.get("/api/search-pending-shippers", searchPendingShippers);
+app.get("/api/search-updating-shippers", searchUpdatingShippers);
+app.get("/api/search-canceling-shippers", searchCancelingShippers);
+// API: Cập nhât trạng thái shipper
+app.post("/api/change-shipper-status", changeShipperStatus);
+
+// // API: Duyệt cập nhật thông tin shipper
+// app.post("/api/approve-update-shipper", approveUpdateShipper);
+// // API: Duyệt hủy tài khoản shipper
+// app.post("/api/approve-cancel-shipper", approveCancelShipper);
 
 // Chạy server
 const PORT = process.env.PORT || 5000;
