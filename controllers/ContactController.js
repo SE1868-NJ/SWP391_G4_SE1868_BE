@@ -1,15 +1,12 @@
 const db = require("../config/DBConnect");
 
-// Xử lý lưu thông tin liên hệ shipper
 const submitContact = (req, res) => {
   const { name, email, phone, message } = req.body;
 
-  // Kiểm tra dữ liệu đầu vào
   if (!name || !email || !phone || !message) {
     return res.status(400).json({ success: false, message: "Vui lòng nhập đầy đủ thông tin." });
   }
 
-  // Thêm dữ liệu vào database
   const sql = "INSERT INTO contacts (name, email, phone, message) VALUES (?, ?, ?, ?)";
   db.query(sql, [name, email, phone, message], (err, result) => {
     if (err) {
@@ -20,7 +17,6 @@ const submitContact = (req, res) => {
   });
 };
 
-// Lấy danh sách liên hệ từ database
 const getContacts = (req, res) => {
   const sql = "SELECT * FROM contacts ORDER BY created_at DESC";
   db.query(sql, (err, results) => {
