@@ -188,23 +188,136 @@ const searchCancelingShippers = (req, res) => {
   });
 };
 const changeShipperStatus = (req, res) => {
-  const { id, newStatus } = req.body;
-  const sql = `
-    UPDATE Shippers
-    SET Status = ?
-    WHERE ShipperID = ?
-  `;
+  const { id, newStatus, cancelReason, cancelTime } = req.body;
 
-  db.query(sql, [newStatus, id], (err, result) => {
-    if (err) {
-      return res.status(500).send(err.message);
-    }
+  // Trường hợp chuyển từ PendingCancel sang Inactive (hủy tài khoản)
+  if (newStatus === 'Inactive' && cancelReason) {
+    const sql = `
+      UPDATE Shippers 
+      SET 
+        Status = ?, 
+        CancelReason = ?, 
+        CancelTime = ?
+      WHERE ShipperID = ? AND Status = 'PendingCancel'
+    `;
+    
+    db.query(sql, [newStatus, cancelReason, cancelTime, id], (err, result) => {
+      if (err) {
+        return res.status(500).send(err.message);
+      }
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Shipper không tồn tại" });
-    }
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: "Không tìm thấy shipper hoặc shipper không ở trạng thái chờ hủy" });
+      }
 
-    res.json({ message: "Trạng thái shipper đã được thay đổi thành công" });
-  });
+      res.json({ 
+        message: "Đã hủy tài khoản shipper thành công",
+        status: newStatus
+      });
+    });
+  }
+  // Trường hợp chuyển từ PendingUpdate sang Active
+  else if (newStatus === 'Active') {
+    // Đầu tiên kiểm tra xem shipper có đang ở trạng thái PendingUpdate không
+    const checkStatusSql = "SELECT Status FROM Shippers WHERE ShipperID = ?";
+    
+    db.query(checkStatusSql, [id], (err, results) => {
+      if (err) {
+        return res.status(500).send(err.message);
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({ message: "Không tìm thấy shipper" });
+      }
+
+      if (results[0].Status === 'PendingUpdate') {
+        // Cập nhật từ các trường temp sang trường chính và xóa dữ liệu ở trường temp
+        const updateSql = `
+          UPDATE Shippers
+          SET 
+            PhoneNumber = CASE WHEN TempPhoneNumber IS NOT NULL THEN TempPhoneNumber ELSE PhoneNumber END,
+            Email = CASE WHEN TempEmail IS NOT NULL THEN TempEmail ELSE Email END,
+            Ward = CASE WHEN TempWard IS NOT NULL THEN TempWard ELSE Ward END,
+            District = CASE WHEN TempDistrict IS NOT NULL THEN TempDistrict ELSE District END,
+            City = CASE WHEN TempCity IS NOT NULL THEN TempCity ELSE City END,
+            BankName = CASE WHEN TempBankName IS NOT NULL THEN TempBankName ELSE BankName END,
+            BankAccountNumber = CASE WHEN TempBankAccountNumber IS NOT NULL THEN TempBankAccountNumber ELSE BankAccountNumber END,
+            VehicleType = CASE WHEN TempVehicleType IS NOT NULL THEN TempVehicleType ELSE VehicleType END,
+            LicensePlate = CASE WHEN TempLicensePlate IS NOT NULL THEN TempLicensePlate ELSE LicensePlate END,
+            RegistrationVehicle = CASE WHEN TempRegistrationVehicle IS NOT NULL THEN TempRegistrationVehicle ELSE RegistrationVehicle END,
+            ExpiryVehicle = CASE WHEN TempExpiryVehicle IS NOT NULL THEN TempExpiryVehicle ELSE ExpiryVehicle END,
+            VehicleRegistrationImage = CASE WHEN TempVehicleRegistrationImage IS NOT NULL THEN TempVehicleRegistrationImage ELSE VehicleRegistrationImage END,
+            ImageShipper = CASE WHEN TempImageShipper IS NOT NULL THEN TempImageShipper ELSE ImageShipper END,
+            Status = ?,
+            TempPhoneNumber = NULL,
+            TempEmail = NULL,
+            TempWard = NULL,
+            TempDistrict = NULL,
+            TempCity = NULL,
+            TempBankName = NULL,
+            TempBankAccountNumber = NULL,
+            TempVehicleType = NULL,
+            TempLicensePlate = NULL,
+            TempRegistrationVehicle = NULL,
+            TempExpiryVehicle = NULL,
+            TempVehicleRegistrationImage = NULL,
+            TempImageShipper = NULL
+          WHERE ShipperID = ?
+        `;
+
+        db.query(updateSql, [newStatus, id], (updateErr, updateResult) => {
+          if (updateErr) {
+            return res.status(500).send(updateErr.message);
+          }
+
+          if (updateResult.affectedRows === 0) {
+            return res.status(404).json({ message: "Không thể cập nhật thông tin shipper" });
+          }
+
+          res.json({ 
+            message: "Đã cập nhật thông tin và chuyển trạng thái shipper thành công",
+            status: newStatus
+          });
+        });
+      } else {
+        // Nếu không phải chuyển từ PendingUpdate, chỉ cập nhật trạng thái
+        const simpleSql = "UPDATE Shippers SET Status = ? WHERE ShipperID = ?";
+        
+        db.query(simpleSql, [newStatus, id], (err, result) => {
+          if (err) {
+            return res.status(500).send(err.message);
+          }
+
+          if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Không tìm thấy shipper" });
+          }
+
+          res.json({ 
+            message: "Đã cập nhật trạng thái shipper thành công",
+            status: newStatus
+          });
+        });
+      }
+    });
+  } else {
+    // Nếu không phải chuyển sang Active hoặc từ PendingCancel sang Inactive, chỉ cập nhật trạng thái
+    const sql = "UPDATE Shippers SET Status = ? WHERE ShipperID = ?";
+    
+    db.query(sql, [newStatus, id], (err, result) => {
+      if (err) {
+        return res.status(500).send(err.message);
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: "Không tìm thấy shipper" });
+      }
+
+      res.json({ 
+        message: "Đã cập nhật trạng thái shipper thành công",
+        status: newStatus
+      });
+    });
+  }
 };
+
 module.exports = { getShippers, getPendingRegisterShippers, searchApprovedShippers, searchPendingShippers, getUpdatingShippers, getCancelingShippers, searchUpdatingShippers, searchCancelingShippers, changeShipperStatus };
