@@ -14,7 +14,7 @@ const {
 } = require("./controllers/manageshipper");
 const { loginShipper } = require("./controllers/Login");
 const { getOrders, changeStatusOrder } = require("./controllers/Order");
-const { updateShipper } = require("./controllers/ShipperAccount");
+// const { updateShipper } = require("./controllers/ShipperAccount");
 const { addShipper } = require("./controllers/ShipperRegister");
 const { getShipperAccount, cancelShipperAccount } = require("./controllers/ShipperAccount");
 const { getShipperDetails, rejectRegisterShipper, approveShipper } = require("./controllers/ShipperDetails");
@@ -50,7 +50,7 @@ app.get("/api/shippers/:id", getShipperAccount);
 app.put("/api/shippers/:id/cancel", cancelShipperAccount);
 app.post("/api/changeStatusOrder", changeStatusOrder);
 
-app.put("/api/shippers/:id", updateShipper);
+// app.put("/api/shippers/:id", updateShipper);
 
 // API: Lấy danh sách shipper đang chờ duyệt đăng ký
 app.get("/api/pending-register-shippers", getPendingRegisterShippers);
