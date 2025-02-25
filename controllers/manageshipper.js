@@ -319,5 +319,25 @@ const changeShipperStatus = (req, res) => {
     });
   }
 };
-
-module.exports = { getShippers, getPendingRegisterShippers, searchApprovedShippers, searchPendingShippers, getUpdatingShippers, getCancelingShippers, searchUpdatingShippers, searchCancelingShippers, changeShipperStatus };
+// API: Lấy chi tiết shipper đang cập nhật
+const getShipperUpdateDetails = (req, res) => {
+  const { id } = req.params;
+  
+  const sql = `
+    SELECT * FROM Shippers
+    WHERE ShipperID = ? AND Status = 'PendingUpdate'
+  `;
+  
+  db.query(sql, [id], (err, results) => {
+    if (err) {
+      return res.status(500).send(err.message);
+    }
+    
+    if (results.length === 0) {
+      return res.status(404).json({ message: "Không tìm thấy thông tin cập nhật của shipper" });
+    }
+    
+    res.json(results[0]);
+  });
+};
+module.exports = { getShippers, getPendingRegisterShippers, searchApprovedShippers, searchPendingShippers, getUpdatingShippers, getCancelingShippers, searchUpdatingShippers, searchCancelingShippers, changeShipperStatus, getShipperUpdateDetails };
