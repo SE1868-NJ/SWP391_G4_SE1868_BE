@@ -29,6 +29,21 @@ const loginShipper = async (req, res) => {
         return res.status(401).json({ success: false, message: "Email hoặc mật khẩu không đúng." });
       }
 
+      // Kiểm tra trạng thái tài khoản
+      if (shipper.Status === "Inactive") {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên." 
+        });
+      }
+
+      if (shipper.Status === "PendingRegister") {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Tài khoản của bạn đang chờ được duyệt. Vui lòng thử lại sau." 
+        });
+      }
+
       res.setHeader("Access-Control-Allow-Credentials", "true");
       res.json({
         success: true,
@@ -37,6 +52,7 @@ const loginShipper = async (req, res) => {
           ShipperID: shipper.ShipperID,
           FullName: shipper.FullName,
           Email: shipper.Email,
+          Status: shipper.Status
         },
       });
     });
