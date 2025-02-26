@@ -10,6 +10,34 @@ const getShippers = (req, res) => {
     res.json(results);
   });
 };
+const addShipper = (req, res) => {
+  const { FullName, PhoneNumber, Email, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status = "Active" } = req.body;
+
+  const sql = `
+    INSERT INTO Shippers (FullName, PhoneNumber, Email, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  db.query(sql, [FullName, PhoneNumber, Email, DateOfBirth, Address, BankAccountNumber, VehicleDetails, Status], (err, result) => {
+    if (err) {
+      return res.status(500).send(err.message);
+    }
+    res.json({ message: "Shipper added successfully!", ShipperID: result.insertId });
+  });
+};
+const getShipperById = (req, res) => {
+  let ShipperID = req.query.id;
+  const sql = "SELECT * FROM swp_shipper.shippers where ShipperID = ?";
+  db.query(sql, [ShipperID], (err, results) => {
+    if (err) {
+      return res.status(500).send(err.message);
+    }
+    if (results.length === 0) {
+      return res.status(404).send("Shipper not found");
+    }
+    res.json({shipper : results[0]});
+  });
+}
 // API: Lấy danh sách shipper đang chờ duyệt update
 const getUpdatingShippers = (req, res) => {
   const sql = "SELECT * FROM Shippers where Status = 'PendingUpdate'";
@@ -207,4 +235,4 @@ const changeShipperStatus = (req, res) => {
     res.json({ message: "Trạng thái shipper đã được thay đổi thành công" });
   });
 };
-module.exports = { getShippers, getPendingRegisterShippers, searchApprovedShippers, searchPendingShippers, getUpdatingShippers, getCancelingShippers, searchUpdatingShippers, searchCancelingShippers, changeShipperStatus };
+module.exports = { getShippers,addShipper, getShipperById ,getPendingRegisterShippers, searchApprovedShippers, searchPendingShippers, getUpdatingShippers, getCancelingShippers, searchUpdatingShippers, searchCancelingShippers, changeShipperStatus };

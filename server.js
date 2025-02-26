@@ -1,5 +1,7 @@
 const express = require("express");
 const cors = require("cors");
+const { submitContact, getContacts } = require("./controllers/contactController");
+const {  addShipper, getShipperById } = require("./controllers/manageshipper");
 const { 
     getShippers, 
     getPendingRegisterShippers, 
@@ -13,8 +15,7 @@ const {
 } = require("./controllers/manageshipper");
 const { loginShipper } = require("./controllers/Login");
 const { forgotPassword, resetPassword } = require("./controllers/ForgotPassword");
-const { getOrders, changeStatusOrder } = require("./controllers/Order");
-const { submitContact, getContacts } = require("./controllers/ContactController");
+const { getOrdersInProgress, changeStatusOrder,getOrderDetails } = require("./controllers/order");
 const { updateShipper } = require("./controllers/ShipperAccount");
 const { 
     getShipperDetails, 
@@ -44,11 +45,18 @@ app.use((req, res, next) => {
 });
 
 // Shipper Routes
-app.get("/api/shippers", getShippers);
-app.get("/api/active-shippers", getShippers);
-app.get("/api/shippers/:id", getShipperDetails);
-app.put("/api/shippers/:id", updateShipper);
+app.use(express.json());
 
+app.get("/api/shippers", getShippers);
+
+app.post("/api/shippers", addShipper);
+
+app.get("/api/getOrdersInProgress",getOrdersInProgress);
+app.get("/api/getOrderDetails/:id",getOrderDetails);
+
+app.get("/api/getShipperById", getShipperById);
+
+app.post("/api/changeStatusOrder", changeStatusOrder);
 // Authentication Routes
 app.post("/api/login", loginShipper);
 app.post("/api/forgot-password", forgotPassword);
@@ -69,15 +77,12 @@ app.get("/api/search-updating-shippers", searchUpdatingShippers);
 app.get("/api/search-canceling-shippers", searchCancelingShippers);
 
 // Order Routes
-app.get("/api/getOrders", getOrders);
+// app.get("/api/getOrders", getOrders);
 app.post("/api/changeStatusOrder", changeStatusOrder);
 
 // Contact Routes
 app.post("/api/contact/submit", submitContact);
 app.get("/api/contact/list", getContacts);
-app.post("/api/contact/submit", submitContact);
-
-
 // Server Startup
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
