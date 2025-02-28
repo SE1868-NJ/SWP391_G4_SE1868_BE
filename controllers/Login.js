@@ -29,16 +29,28 @@ const loginShipper = async (req, res) => {
         return res.status(401).json({ success: false, message: "Email hoặc mật khẩu không đúng." });
       }
 
-      res.setHeader("Access-Control-Allow-Credentials", "true");
-      res.json({
-        success: true,
-        message: "Đăng nhập thành công!",
-        shipper: {
-          ShipperID: shipper.ShipperID,
-          FullName: shipper.FullName,
-          Email: shipper.Email,
-        },
-      });
+      if (shipper.Status === 'Active') {
+        return res.json({
+          success: true,
+          message: "Đăng nhập thành công!",
+          shipper: {
+            ShipperID: shipper.ShipperID,
+            FullName: shipper.FullName,
+            Email: shipper.Email,
+            Status: shipper.Status
+          },
+        });
+      } else if (shipper.Status === 'PendingRegister') {
+        return res.status(200).json({
+          success: false,
+          message: "Tài khoản của bạn đang được duyệt, vui lòng đợi."
+        });
+      } else if (shipper.Status === 'Inactive') {
+        return res.status(200).json({
+          success: false,
+          message: "Tài khoản của bạn bị vô hiệu hoá."
+        });
+      }
     });
   } catch (error) {
     console.error("Lỗi đăng nhập:", error);
