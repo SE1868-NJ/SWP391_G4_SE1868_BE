@@ -84,7 +84,7 @@ app.post("/api/changeStatusOrder", changeStatusOrder);
 app.post("/api/contact/submit", submitContact);
 app.get("/api/contact/list", getContacts);
 // Server Startup
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
