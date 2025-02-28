@@ -58,12 +58,9 @@ app.get("/api/shippers/:id", getShipperDetails);
 // API tìm kiếm shipper
 app.get("/api/search-approved-shippers", searchApprovedShippers);
 
-
 app.get("/api/search-pending-shippers", searchPendingShippers);
 
-
 app.get("/api/search-updating-shippers", searchUpdatingShippers);
-
 
 app.get("/api/search-canceling-shippers", searchCancelingShippers);
 // API: Cập nhât trạng thái shipper
