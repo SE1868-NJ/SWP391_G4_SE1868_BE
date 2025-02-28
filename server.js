@@ -6,7 +6,7 @@ const { loginShipper } = require("./controllers/Login");
 const { getOrders, changeStatusOrder } = require("./controllers/Order");
 const { updateShipper } = require("./controllers/ShipperAccount");
 const {  getShipperDetails, rejectRegisterShipper, approveShipper } = require("./controllers/ShipperDetails");
-
+const { getReports } = require("./controllers/OperatorReport");
 const app = express();
 
 // Enhanced CORS configuration
@@ -70,6 +70,11 @@ app.get("/api/search-canceling-shippers", searchCancelingShippers);
 app.post("/api/change-shipper-status", changeShipperStatus);
 // API: Chi tiết cập nhật thông tin shipper
 app.get("/api/shipper-update-details/:id", getShipperUpdateDetails);
+
+
+
+//API: Lấy thông tin báo cáo
+app.get("/api/reports", getReports);
 
 // Chạy server
 const PORT = process.env.PORT || 5000;
