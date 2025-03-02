@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-
+const { authenticateToken } = require('./controllers/middleware/authMiddleware');
 // Import controllers
 const { submitContact, getContacts } = require("./controllers/contactController");
 const { 
@@ -19,12 +19,13 @@ const {
 const { loginShipper } = require("./controllers/Login");
 const { forgotPassword, resetPassword } = require("./controllers/ForgotPassword");
 const { getOrdersInProgress, changeStatusOrder, getOrderDetails } = require("./controllers/order");
-const { updateShipper } = require("./controllers/ShipperAccount");
+// const { updateShipper } = require("./controllers/ShipperAccount");
 const { 
     getShipperDetails, 
     rejectRegisterShipper, 
     approveShipper 
 } = require("./controllers/ShipperDetails");
+const { getShipperAccount } = require("./controllers/ShipperAccount");
 
 const app = express();
 
@@ -48,15 +49,17 @@ app.use((req, res, next) => {
 
 // 📌 --- SHIPPER ROUTES ---
 app.get("/api/shippers", getShippers);
-app.put("/api/shippers/:id", updateShipper);
+// app.put("/api/shippers/:id", updateShipper);
+app.get("/api/shippers-auth/:id", authenticateToken, getShipperAccount);
+app.post("/api/approve-shipper", approveShipper);
+app.post("/api/reject-shipper", rejectRegisterShipper);
+// API: Lấy thông tin chi tiết của shipper
 app.get("/api/shippers/:id", getShipperDetails);
 
-// 📌 --- Login ROUTES ---
 app.post("/api/login", loginShipper);
 app.post("/api/forgot-password", forgotPassword);
 app.post("/api/reset-password", resetPassword);
 
-// 📌 --- SHIPPER MANAGEMENT ---
 app.get("/api/pending-register-shippers", getPendingRegisterShippers);
 app.get("/api/pending-update-shippers", getUpdatingShippers);
 app.get("/api/pending-cancel-shippers", getCancelingShippers);
@@ -64,23 +67,19 @@ app.post("/api/approve-shipper", approveShipper);
 app.post("/api/reject-shipper", rejectRegisterShipper);
 app.post("/api/change-shipper-status", changeShipperStatus);
 
-// 📌 --- SEARCH ROUTES ---
 app.get("/api/search-approved-shippers", searchApprovedShippers);
 app.get("/api/search-pending-shippers", searchPendingShippers);
 app.get("/api/search-updating-shippers", searchUpdatingShippers);
 app.get("/api/search-canceling-shippers", searchCancelingShippers);
 
-// 📌 --- ORDER ROUTES ---
 app.get("/api/getOrdersInProgress", getOrdersInProgress);
 app.get("/api/getOrderDetails/:id", getOrderDetails);
 app.post("/api/changeStatusOrder", changeStatusOrder);
 
-// 📌 --- CONTACT ROUTES ---
 app.post("/api/contact/submit", submitContact);
 app.get("/api/contact/list", getContacts);
 
-// 📌 --- ShipperAccount ROUTES ---
-app.put("/api/shippers/:id", updateShipper);
+// app.put("/api/shippers/:id", updateShipper);
 
 // API: Lấy danh sách shipper đang chờ duyệt cập nhật
 app.get("/api/pending-update-shippers", getUpdatingShippers);
