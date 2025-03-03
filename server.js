@@ -4,9 +4,8 @@ const { getShippers, getShipperById } = require("./controllers/manageshipper");
 const { loginShipper } = require("./controllers/Login");
 const { forgotPassword, resetPassword } = require("./controllers/ForgotPassword");
 const { getOrders, changeStatusOrder } = require("./controllers/Order");
-const { updateShipper } = require("./controllers/ShipperAccount");
 const {addShipper}   = require("./controllers/ShipperRegister");
-const { getShipperAccount, cancelShipperAccount } = require("./controllers/ShipperAccount");
+const { getShipperAccount, cancelShipperAccount, updateShipper } = require("./controllers/ShipperAccount");
 
 const app = express();
 
@@ -38,6 +37,8 @@ app.get("/api/getOrders", getOrders);
 app.post("/api/shippers", addShipper);
 app.get("/api/shippers/:id", getShipperAccount);
 app.put("/api/shippers/:id/cancel", cancelShipperAccount);
+app.put("/api/shippers/:id/update", updateShipper);
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
