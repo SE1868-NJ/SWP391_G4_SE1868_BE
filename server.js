@@ -3,10 +3,10 @@ const cors = require("cors");
 const { getShippers, getPendingRegisterShippers, searchApprovedShippers, searchPendingShippers,changeShipperStatus ,getUpdatingShippers, getCancelingShippers, searchUpdatingShippers, searchCancelingShippers,getShipperUpdateDetails } = require("./controllers/manageshipper");
 const { loginShipper } = require("./controllers/Login");
 // const { forgotPassword, resetPassword } = require("./controllers/Password");
-const { getOrders, changeStatusOrder } = require("./controllers/Order");
+// const { getOrders, changeStatusOrder } = require("./controllers/Order");
 const { updateShipper } = require("./controllers/ShipperAccount");
 const {  getShipperDetails, rejectRegisterShipper, approveShipper } = require("./controllers/ShipperDetails");
-const { getReports } = require("./controllers/OperatorReport");
+
 const app = express();
 
 // Enhanced CORS configuration
@@ -33,8 +33,8 @@ app.get("/api/shippers", getShippers);
 app.post("/api/login", loginShipper);
 // app.post("/api/forgot-password", forgotPassword);
 // app.post("/api/reset-password", resetPassword);
-app.get("/api/getOrders", getOrders);
-app.post("/api/changeStatusOrder", changeStatusOrder);
+// app.get("/api/getOrders", getOrders);
+// app.post("/api/changeStatusOrder", changeStatusOrder);
 
 app.put("/api/shippers/:id", updateShipper);
 // API: Lấy danh sách shipper đang chờ duyệt đăng ký
@@ -70,11 +70,6 @@ app.get("/api/search-canceling-shippers", searchCancelingShippers);
 app.post("/api/change-shipper-status", changeShipperStatus);
 // API: Chi tiết cập nhật thông tin shipper
 app.get("/api/shipper-update-details/:id", getShipperUpdateDetails);
-
-
-
-//API: Lấy thông tin báo cáo
-app.get("/api/reports", getReports);
 
 // Chạy server
 const PORT = process.env.PORT || 5000;
