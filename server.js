@@ -15,7 +15,7 @@ const {
 } = require("./controllers/manageshipper");
 const { loginShipper } = require("./controllers/Login");
 const { forgotPassword, resetPassword } = require("./controllers/ForgotPassword");
-const { getOrdersInProgress, changeStatusOrder,getOrderDetails } = require("./controllers/order");
+const { getOrdersInProgress, changeStatusOrder,getOrderDetails, getOrdersPending, getMyDeliveryOrders, getHistoryDeliveryOrders, pickOrder, confirmDeliveryOrder, getAllMyDeliveryOrders } = require("./controllers/order");
 const { updateShipper } = require("./controllers/ShipperAccount");
 const { 
     getShipperDetails, 
@@ -51,8 +51,13 @@ app.get("/api/shippers", getShippers);
 
 app.post("/api/shippers", addShipper);
 
-app.get("/api/getOrdersInProgress",getOrdersInProgress);
+app.get("/api/getOrdersPending",getOrdersPending);
+app.get("/api/get-my-delivery-order", getMyDeliveryOrders);
+app.get("/api/get-history-delivery-order", getHistoryDeliveryOrders);
 app.get("/api/getOrderDetails/:id",getOrderDetails);
+app.put("/api/pickOrder",pickOrder);
+app.put("/api/confirm-delivery-order",confirmDeliveryOrder);
+app.get("/api/get-all-my-delivery-orders/:id", getAllMyDeliveryOrders);
 
 app.get("/api/getShipperById", getShipperById);
 
