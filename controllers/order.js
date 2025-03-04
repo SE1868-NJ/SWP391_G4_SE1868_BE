@@ -134,3 +134,4 @@ const getOrderDetails = async (req, res) => {
 
 
 module.exports = { getOrdersInProgress,changeStatusOrder,getOrderDetails };
+/// to checkout 
