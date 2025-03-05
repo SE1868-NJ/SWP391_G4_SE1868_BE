@@ -4,11 +4,11 @@ const getShipperAccount = async (req, res) => {
   try {
     const shipperId = req.params.id;
     if (!shipperId) {
-        return res.status(400).json({
-          success: false,
-          message: 'ShipperID is required'
-        });
-      }
+      return res.status(400).json({
+        success: false,
+        message: 'ShipperID is required'
+      });
+    }
     const query = `
       SELECT 
         s.ShipperID,
@@ -35,7 +35,7 @@ const getShipperAccount = async (req, res) => {
       FROM Shippers s
       WHERE s.ShipperID = ?
     `;
-      
+
     db.query(query, [shipperId], (err, results) => {
       if (err) {
         console.error('Error fetching shipper data:', err);
@@ -67,45 +67,45 @@ const getShipperAccount = async (req, res) => {
 };
 
 const cancelShipperAccount = async (req, res) => {
-    try {
-      const shipperId = req.params.id;
-      const { reason } = req.body;  // Keep the reason, and set the status to 'PendingCancel'
-  
-      const query = `
+  try {
+    const shipperId = req.params.id;
+    const { reason } = req.body;  // Keep the reason, and set the status to 'PendingCancel'
+
+    const query = `
         UPDATE Shippers 
         SET Status = 'PendingCancel', CancelReason = ? 
         WHERE ShipperID = ?
       `;
-  
-      db.query(query, [reason, shipperId], (err, result) => {
-        if (err) {
-          console.error('Error canceling shipper account:', err);
-          return res.status(500).json({
-            success: false,
-            message: 'Lỗi khi hủy tài khoản'
-          });
-        }
-  
-        if (result.affectedRows === 0) {
-          return res.status(404).json({
-            success: false,
-            message: 'Không tìm thấy tài khoản shipper'
-          });
-        }
-  
-        res.status(200).json({
-          success: true,
-          message: 'Hủy tài khoản thành công, trạng thái đang chờ hủy'
+
+    db.query(query, [reason, shipperId], (err, result) => {
+      if (err) {
+        console.error('Error canceling shipper account:', err);
+        return res.status(500).json({
+          success: false,
+          message: 'Lỗi khi hủy tài khoản'
         });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy tài khoản shipper'
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Hủy tài khoản thành công, trạng thái đang chờ hủy'
       });
-    } catch (error) {
-      console.error('Server error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Lỗi server'
-      });
-    }
-  };
+    });
+  } catch (error) {
+    console.error('Server error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server'
+    });
+  }
+};
 
 const updateShipper = async (req, res) => {
   try {
@@ -113,6 +113,7 @@ const updateShipper = async (req, res) => {
     const {
       TempPhoneNumber,
       TempEmail,
+      TempHouseNumber,
       TempWard,
       TempDistrict,
       TempCity,
@@ -141,6 +142,10 @@ const updateShipper = async (req, res) => {
       queryParams.push(TempEmail);
     }
 
+    if (TempHouseNumber !== undefined) {
+      updateFields.push('TempHouseNumber = ?');
+      queryParams.push(TempHouseNumber);
+    }
     if (TempWard !== undefined) {
       updateFields.push('TempWard = ?');
       queryParams.push(TempWard);
