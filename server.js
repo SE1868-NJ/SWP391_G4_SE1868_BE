@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const { authenticateToken } = require('./controllers/middleware/authMiddleware');
 // Import controllers
-const { submitContact, getContacts } = require("./controllers/contactController");
+const { submitContact, getContacts } = require("./controllers/ContactController");
 const { 
     getShippers, 
     getPendingRegisterShippers,
@@ -14,11 +14,11 @@ const {
     searchUpdatingShippers,
     searchCancelingShippers,
     getShipperUpdateDetails
-} = require("./controllers/manageshipper");
+} = require("./controllers/ManageShipper");
 
 const { loginShipper } = require("./controllers/Login");
 const { forgotPassword, resetPassword } = require("./controllers/ForgotPassword");
-const { getOrdersInProgress, changeStatusOrder, getOrderDetails } = require("./controllers/order");
+const { getOrdersInProgress, changeStatusOrder, getOrderDetails } = require("./controllers/Order");
 const { 
     getShipperDetails, 
     rejectRegisterShipper, 
