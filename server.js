@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const { authenticateToken } = require('./controllers/middleware/authMiddleware');
 // Import controllers
-const { submitContact, getContacts } = require("./controllers/contactController");
+const { submitContact, getContacts } = require("./controllers/ContactController");
 const { 
     getShippers, 
     getPendingRegisterShippers,
