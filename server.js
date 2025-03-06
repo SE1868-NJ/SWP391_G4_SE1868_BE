@@ -110,7 +110,7 @@ app.post("/api/change-shipper-status", changeShipperStatus);
 app.get("/api/shipper-update-details/:id", getShipperUpdateDetails);
 
 // Chạy server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
