@@ -19,14 +19,12 @@ const {
 const { loginShipper } = require("./controllers/Login");
 const { forgotPassword, resetPassword } = require("./controllers/ForgotPassword");
 const { getOrdersInProgress, changeStatusOrder, getOrderDetails } = require("./controllers/order");
- const { updateShipper } = require("./controllers/ShipperAccount");
 const { 
     getShipperDetails, 
     rejectRegisterShipper, 
     approveShipper 
 } = require("./controllers/ShipperDetails");
-const { getShipperAccount } = require("./controllers/ShipperAccount");
-
+const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet } = require("./controllers/ShipperAccount");
 const app = express();
 
 // Enhanced CORS configuration
@@ -50,6 +48,10 @@ app.use((req, res, next) => {
 // 📌 --- SHIPPER ROUTES ---
 app.get("/api/shippers", getShippers);
 app.put("/api/shippers/:id/update", updateShipper);
+app.put("/api/shippers/:id/cancel", cancelShipperAccount);
+app.get("/api/shipper/:id/wallet", authenticateToken, getWalletData);
+app.get('/api/shipper/:id/total-wallet', getTotalWallet);
+
 app.get("/api/shippers-auth/:id", authenticateToken, getShipperAccount);
 app.post("/api/approve-shipper", approveShipper);
 app.post("/api/reject-shipper", rejectRegisterShipper);
@@ -79,7 +81,7 @@ app.post("/api/changeStatusOrder", changeStatusOrder);
 app.post("/api/contact/submit", submitContact);
 app.get("/api/contact/list", getContacts);
 
-// app.put("/api/shippers/:id", updateShipper);
+//  app.put("/api/shippers/:id", updateShipper);
 
 // API: Lấy danh sách shipper đang chờ duyệt cập nhật
 app.get("/api/pending-update-shippers", getUpdatingShippers);

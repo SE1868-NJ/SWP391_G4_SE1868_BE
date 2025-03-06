@@ -251,9 +251,150 @@ const updateShipper = async (req, res) => {
     });
   }
 };
+const getWalletData = async (req, res) => {
+  try {
+    const shipperId = req.params.id;
+    const { week } = req.query;
+    console.log('ShipperID:', shipperId, 'Filter Week:', week);
 
+    if (!shipperId) {
+      return res.status(400).json({ success: false, message: 'ShipperID is required' });
+    }
+
+    let query = `
+      SELECT 
+        DATE(ActualDeliveryTime) AS deliveryDate,
+        COUNT(*) AS orderCount,
+        SUM(ShippingFee) AS totalShippingFee,
+        SUM(ExtraMoney) AS totalExtraMoney
+      FROM Orders
+      WHERE ShipperID = ? AND OrderStatus = 'Delivered'
+    `;
+    let queryParams = [shipperId];
+
+    if (week) {
+      const [year, weekNum] = week.split('-W');
+      query += ` AND YEAR(ActualDeliveryTime) = ? AND WEEK(ActualDeliveryTime, 1) = ?`;
+      queryParams.push(year, parseInt(weekNum));
+    }
+
+    query += ` GROUP BY DATE(ActualDeliveryTime) ORDER BY deliveryDate DESC`;
+
+    db.query(query, queryParams, (err, results) => {
+      if (err) {
+        console.error('Error fetching wallet data:', err);
+        return res.status(500).json({ success: false, message: 'Lỗi khi lấy dữ liệu ví' });
+      }
+      console.log('Query Results:', results); // Kiểm tra kết quả từ DB
+
+      const data = results.map(row => {
+        const orderCount = row.orderCount;
+        let bonus = 0;
+        const bonusPerMilestone = 2000;
+        if (orderCount >= 20) bonus = bonusPerMilestone * 20;
+        else if (orderCount >= 15) bonus = bonusPerMilestone * 15;
+        else if (orderCount >= 10) bonus = bonusPerMilestone * 10;
+        else if (orderCount >= 5) bonus = bonusPerMilestone * 5;
+        const dailyTotal = Number(row.totalShippingFee || 0) + Number(row.totalExtraMoney || 0) + bonus;
+        return {
+          deliveryDate: row.deliveryDate,
+          orderCount,
+          totalShippingFee: row.totalShippingFee || 0,
+          totalExtraMoney: row.totalExtraMoney || 0,
+          bonus,
+          dailyTotal
+        };
+      });
+
+      const totals = {
+        totalOrderCount: data.reduce((sum, row) => sum + row.orderCount, 0),
+        totalShippingFee: data.reduce((sum, row) => sum + Number(row.totalShippingFee), 0),
+        totalExtraMoney: data.reduce((sum, row) => sum + Number(row.totalExtraMoney), 0),
+        totalBonus: data.reduce((sum, row) => sum + row.bonus, 0)
+      };
+
+      console.log('Processed Data:', data); // Kiểm tra dữ liệu sau khi xử lý
+      console.log('Totals:', totals); // Kiểm tra totals
+      res.status(200).json({
+        success: true,
+        data: { dailyData: data, totals }
+      });
+    });
+  } catch (error) {
+    console.error('Server error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+const getTotalWallet = async (req, res) => {
+  try {
+    const shipperId = req.params.id;
+
+    if (!shipperId) {
+      return res.status(400).json({ success: false, message: 'ShipperID is required' });
+    }
+
+    const query = `
+      SELECT 
+        SUM(ShippingFee) AS totalShippingFee,
+        SUM(ExtraMoney) AS totalExtraMoney,
+        COUNT(*) AS orderCount
+      FROM Orders
+      WHERE ShipperID = ? AND OrderStatus = 'Delivered'
+    `;
+    const queryParams = [shipperId];
+
+    db.query(query, queryParams, (err, results) => {
+      if (err) {
+        console.error('Error fetching total wallet data:', err);
+        return res.status(500).json({ success: false, message: 'Lỗi khi lấy dữ liệu tổng ví' });
+      }
+
+      const result = results[0];
+      const orderCount = result.orderCount || 0;
+      let totalBonus = 0;
+      const bonusPerMilestone = 2000;
+
+      db.query(`
+        SELECT COUNT(*) AS dailyOrderCount
+        FROM Orders
+        WHERE ShipperID = ? AND OrderStatus = 'Delivered'
+        GROUP BY DATE(ActualDeliveryTime)
+      `, [shipperId], (err, dailyResults) => {
+        if (err) {
+          console.error('Error fetching daily order counts:', err);
+          return res.status(500).json({ success: false, message: 'Lỗi khi tính bonus' });
+        }
+
+        dailyResults.forEach(row => {
+          const dailyCount = row.dailyOrderCount;
+          if (dailyCount >= 20) totalBonus += bonusPerMilestone * 20;
+          else if (dailyCount >= 15) totalBonus += bonusPerMilestone * 15;
+          else if (dailyCount >= 10) totalBonus += bonusPerMilestone * 10;
+          else if (dailyCount >= 5) totalBonus += bonusPerMilestone * 5;
+        });
+
+        const totalWallet = (Number(result.totalShippingFee) || 0) + (Number(result.totalExtraMoney) || 0) + totalBonus;
+
+        res.status(200).json({
+          success: true,
+          data: {
+            totalWallet: totalWallet,
+            totalShippingFee: Number(result.totalShippingFee) || 0,
+            totalExtraMoney: Number(result.totalExtraMoney) || 0,
+            totalBonus: totalBonus
+          }
+        });
+      });
+    });
+  } catch (error) {
+    console.error('Server error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
 module.exports = {
   getShipperAccount,
   cancelShipperAccount,
-  updateShipper
+  updateShipper,
+  getWalletData,
+  getTotalWallet
 };
