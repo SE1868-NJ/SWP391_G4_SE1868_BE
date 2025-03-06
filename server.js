@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
-const { submitContact, getContacts } = require("./controllers/contactController");
-const {  addShipper, getShipperById } = require("./controllers/manageshipper");
+const { submitContact, getContacts } = require("./controllers/ContactController");
+const {  addShipper, getShipperById } = require("./controllers/ManageShipper");
 const { 
     getShippers, 
     getPendingRegisterShippers, 
@@ -12,7 +12,7 @@ const {
     getCancelingShippers, 
     searchUpdatingShippers, 
     searchCancelingShippers 
-} = require("./controllers/manageshipper");
+} = require("./controllers/ManageShipper");
 const { loginShipper } = require("./controllers/Login");
 const { forgotPassword, resetPassword } = require("./controllers/ForgotPassword");
 const { getOrdersInProgress, changeStatusOrder,getOrderDetails, getOrdersPending, getMyDeliveryOrders, getHistoryDeliveryOrders, pickOrder, confirmDeliveryOrder, getAllMyDeliveryOrders } = require("./controllers/Order");
