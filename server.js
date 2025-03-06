@@ -15,7 +15,7 @@ const {
 } = require("./controllers/manageshipper");
 const { loginShipper } = require("./controllers/Login");
 const { forgotPassword, resetPassword } = require("./controllers/ForgotPassword");
-const { getOrdersInProgress, changeStatusOrder,getOrderDetails, getOrdersPending, getMyDeliveryOrders, getHistoryDeliveryOrders, pickOrder, confirmDeliveryOrder, getAllMyDeliveryOrders } = require("./controllers/order");
+const { getOrdersInProgress, changeStatusOrder,getOrderDetails, getOrdersPending, getMyDeliveryOrders, getHistoryDeliveryOrders, pickOrder, confirmDeliveryOrder, getAllMyDeliveryOrders } = require("./controllers/Order");
 const { updateShipper } = require("./controllers/ShipperAccount");
 const { 
     getShipperDetails, 
