@@ -15,11 +15,11 @@ const {
     searchUpdatingShippers,
     searchCancelingShippers,
     getShipperUpdateDetails
-} = require("./controllers/manageshipper");
+} = require("./controllers/ManageShipper");
 
 const { loginShipper } = require("./controllers/Login");
 const { forgotPassword, resetPassword } = require("./controllers/ForgotPassword");
-const { getOrdersInProgress, changeStatusOrder, getOrderDetails } = require("./controllers/order");
+const { getOrdersInProgress, changeStatusOrder, getOrderDetails } = require("./controllers/Order");
 // const { updateShipper } = require("./controllers/ShipperAccount");
 const { 
     getShipperDetails, 
