@@ -38,6 +38,17 @@ const {
     approveShipper 
 } = require("./controllers/ShipperDetails");
 
+const { getShipperAccount } = require("./controllers/ShipperAccount");
+const { 
+    createOrderReport, 
+    createShipperReport, 
+    getOrderReports, 
+    getShipperReports,
+    updateReportStatus,
+    getCustomerOrderReports
+  } = require("./controllers/ReportController");
+
+
 const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet } = require("./controllers/ShipperAccount");
 const app = express();
 
@@ -139,6 +150,15 @@ app.get("/api/search-canceling-shippers", searchCancelingShippers);
 app.post("/api/change-shipper-status", changeShipperStatus);
 // API: Chi tiết cập nhật thông tin shipper
 app.get("/api/shipper-update-details/:id", getShipperUpdateDetails);
+
+//API: Sự cố shipper
+app.post("/api/reports/order", createOrderReport);
+app.post("/api/reports/shipper", createShipperReport);
+app.get("/api/order-reports", getOrderReports);
+app.get("/api/shipper-reports", getShipperReports);
+app.put("/api/reports/:reportId", updateReportStatus);
+app.get("/api/customer-order-reports", getCustomerOrderReports);
+app.put("/api/orders/:id/status", changeStatusOrder);
 
 // Chạy server
 const PORT = process.env.PORT || 4000;
