@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require("express");
 const cors = require("cors");
 const { authenticateToken } = require('./controllers/middleware/authMiddleware');
@@ -29,16 +30,14 @@ const {
     getFees,
     getAlerts
 } = require("./controllers/RevenueOp");
-
-
 const { getOrdersInProgress, changeStatusOrder, getOrderDetails } = require("./controllers/Order");
 const { 
     getShipperDetails, 
     rejectRegisterShipper, 
     approveShipper 
 } = require("./controllers/ShipperDetails");
+const chatRoutes = require('./controllers/chatBox/ChatRoutes');
 
-const { getShipperAccount } = require("./controllers/ShipperAccount");
 const { 
     createOrderReport, 
     createShipperReport, 
@@ -77,6 +76,7 @@ app.put("/api/shippers/:id/update", updateShipper);
 app.put("/api/shippers/:id/cancel", cancelShipperAccount);
 app.get("/api/shipper/:id/wallet", authenticateToken, getWalletData);
 app.get('/api/shipper/:id/total-wallet', getTotalWallet);
+app.put("/api/shippers/:id", updateShipper);
 
 app.get("/api/shippers-auth/:id", authenticateToken, getShipperAccount);
 app.post("/api/approve-shipper", approveShipper);
@@ -121,8 +121,11 @@ app.get("/api/alerts", getAlerts);
 app.post("/api/contact/submit", submitContact);
 app.get("/api/contact/list", getContacts);
 
-//  app.put("/api/shippers/:id", updateShipper);
+ app.put("/api/shippers/:id", updateShipper);
 
+ //lấy order
+ app.get("/api/getOrdersInProgress",getOrdersInProgress);
+ app.get("/api/getOrderDetails/:id",getOrderDetails);
 // API: Lấy danh sách shipper đang chờ duyệt cập nhật
 app.get("/api/pending-update-shippers", getUpdatingShippers);
 
@@ -159,6 +162,9 @@ app.get("/api/shipper-reports", getShipperReports);
 app.put("/api/reports/:reportId", updateReportStatus);
 app.get("/api/customer-order-reports", getCustomerOrderReports);
 app.put("/api/orders/:id/status", changeStatusOrder);
+
+// API: AI
+app.use('/api', chatRoutes);
 
 // Chạy server
 const PORT = process.env.PORT || 4000;
