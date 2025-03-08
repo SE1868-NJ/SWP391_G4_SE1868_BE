@@ -30,7 +30,15 @@ const {
     getFees,
     getAlerts
 } = require("./controllers/RevenueOp");
-const { getOrdersInProgress, changeStatusOrder, getOrderDetails } = require("./controllers/Order");
+const {
+    changeStatusOrder,
+    getOrderDetails,
+    getOrdersPending,
+    getMyDeliveryOrders,
+    getHistoryDeliveryOrders,
+    pickOrder, confirmDeliveryOrder,
+    getAllMyDeliveryOrders 
+} = require("./controllers/Order");
 const { 
     getShipperDetails, 
     rejectRegisterShipper, 
@@ -83,7 +91,15 @@ app.post("/api/approve-shipper", approveShipper);
 app.post("/api/reject-shipper", rejectRegisterShipper);
 // API: Lấy thông tin chi tiết của shipper
 app.get("/api/shippers/:id", getShipperDetails);
-app.get("/api/shippers-auth/:id", authenticateToken, getShipperAccount);
+app.get("/api/getOrdersPending",getOrdersPending);
+//lấy order
+app.get("/api/getOrderDetails/:id",getOrderDetails);
+app.get("/api/get-my-delivery-order", getMyDeliveryOrders);
+app.get("/api/get-history-delivery-order", getHistoryDeliveryOrders);
+app.get("/api/getOrderDetails/:id",getOrderDetails);
+app.put("/api/pickOrder",pickOrder);
+app.put("/api/confirm-delivery-order",confirmDeliveryOrder);
+app.get("/api/get-all-my-delivery-orders/:id", getAllMyDeliveryOrders);
 
 // Authentication Routes
 app.post("/api/login", loginShipper);
@@ -104,7 +120,6 @@ app.get("/api/search-approved-shippers", searchApprovedShippers);
 app.get("/api/search-pending-shippers", searchPendingShippers);
 app.get("/api/search-updating-shippers", searchUpdatingShippers);
 app.get("/api/search-canceling-shippers", searchCancelingShippers);
-
 app.get("/api/shipper-update-details/:id", getShipperUpdateDetails);
 
 // 📌 --- REVENUE ROUTES ---
@@ -122,10 +137,6 @@ app.post("/api/contact/submit", submitContact);
 app.get("/api/contact/list", getContacts);
 
  app.put("/api/shippers/:id", updateShipper);
-
- //lấy order
- app.get("/api/getOrdersInProgress",getOrdersInProgress);
- app.get("/api/getOrderDetails/:id",getOrderDetails);
  
 // API: Lấy danh sách shipper đang chờ duyệt cập nhật
 app.get("/api/pending-update-shippers", getUpdatingShippers);
