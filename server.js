@@ -126,6 +126,7 @@ app.get("/api/contact/list", getContacts);
  //lấy order
  app.get("/api/getOrdersInProgress",getOrdersInProgress);
  app.get("/api/getOrderDetails/:id",getOrderDetails);
+ 
 // API: Lấy danh sách shipper đang chờ duyệt cập nhật
 app.get("/api/pending-update-shippers", getUpdatingShippers);
 
@@ -167,7 +168,7 @@ app.put("/api/orders/:id/status", changeStatusOrder);
 app.use('/api', chatRoutes);
 
 // Chạy server
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
