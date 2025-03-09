@@ -55,7 +55,6 @@ const {
     getCustomerOrderReports
   } = require("./controllers/ReportController");
 
-
 const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet } = require("./controllers/ShipperAccount");
 const app = express();
 
