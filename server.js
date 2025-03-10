@@ -22,7 +22,12 @@ const {
     rejectRegisterShipper, 
     approveShipper 
 } = require("./controllers/ShipperDetails");
-
+const { 
+    getNotifications, 
+    markAsRead, 
+    createOrderNotification,
+    markAllNotificationsAsRead 
+} = require("./controllers/NotificationController");
 
 const app = express();
 
@@ -88,6 +93,12 @@ app.post("/api/changeStatusOrder", changeStatusOrder);
 // Contact Routes
 app.post("/api/contact/submit", submitContact);
 app.get("/api/contact/list", getContacts);
+
+//notifications
+app.get("/api/notifications", getNotifications); // Lấy danh sách thông báo
+app.put("/api/notifications/:id/read", markAsRead); // Đánh dấu thông báo đã đọc
+app.put("/api/notifications/mark-all-read", markAllNotificationsAsRead);
+
 // Server Startup
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
