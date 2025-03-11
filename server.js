@@ -1,9 +1,10 @@
+require('dotenv').config();
 const express = require("express");
 const cors = require("cors");
 const { authenticateToken } = require('./controllers/middleware/authMiddleware');
 
 // Import controllers
-const { submitContact, getContacts } = require("./controllers/contactController");
+const { submitContact, getContacts } = require("./controllers/ContactController");
 const { 
     getShippers, 
     getPendingRegisterShippers,
@@ -29,15 +30,32 @@ const {
     getFees,
     getAlerts
 } = require("./controllers/RevenueOp");
-
+const {
+    changeStatusOrder,
+    getOrderDetails,
+    getOrdersPending,
+    getMyDeliveryOrders,
+    getHistoryDeliveryOrders,
+    pickOrder, confirmDeliveryOrder,
+    getAllMyDeliveryOrders 
+} = require("./controllers/Order");
 const { 
     getShipperDetails, 
     rejectRegisterShipper, 
     approveShipper 
 } = require("./controllers/ShipperDetails");
+const chatRoutes = require('./controllers/chatBox/ChatRoutes');
 
-const { getShipperAccount } = require("./controllers/ShipperAccount");
+const { 
+    createOrderReport, 
+    createShipperReport, 
+    getOrderReports, 
+    getShipperReports,
+    updateReportStatus,
+    getCustomerOrderReports
+  } = require("./controllers/ReportController");
 
+const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet } = require("./controllers/ShipperAccount");
 const app = express();
 
 // Enhanced CORS configuration
@@ -60,8 +78,31 @@ app.use((req, res, next) => {
 
 // 📌 --- SHIPPER ROUTES ---
 app.get("/api/shippers", getShippers);
-app.get("/api/shippers/:id", getShipperDetails);
+
+app.put("/api/shippers/:id/update", updateShipper);
+app.put("/api/shippers/:id/cancel", cancelShipperAccount);
+app.get("/api/shipper/:id/wallet", authenticateToken, getWalletData);
+app.get('/api/shipper/:id/total-wallet', getTotalWallet);
+app.put("/api/shippers/:id", updateShipper);
+app.post('/api/shipper/:id/deposit', depositToWallet);
+app.post('/api/shipper/:id/withdraw', withdrawFromWallet);
+
+
+
 app.get("/api/shippers-auth/:id", authenticateToken, getShipperAccount);
+app.post("/api/approve-shipper", approveShipper);
+app.post("/api/reject-shipper", rejectRegisterShipper);
+// API: Lấy thông tin chi tiết của shipper
+app.get("/api/shippers/:id", getShipperDetails);
+app.get("/api/getOrdersPending",getOrdersPending);
+//lấy order
+app.get("/api/getOrderDetails/:id",getOrderDetails);
+app.get("/api/get-my-delivery-order", getMyDeliveryOrders);
+app.get("/api/get-history-delivery-order", getHistoryDeliveryOrders);
+app.get("/api/getOrderDetails/:id",getOrderDetails);
+app.put("/api/pickOrder",pickOrder);
+app.put("/api/confirm-delivery-order",confirmDeliveryOrder);
+app.get("/api/get-all-my-delivery-orders/:id", getAllMyDeliveryOrders);
 
 // Authentication Routes
 app.post("/api/login", loginShipper);
@@ -82,7 +123,6 @@ app.get("/api/search-approved-shippers", searchApprovedShippers);
 app.get("/api/search-pending-shippers", searchPendingShippers);
 app.get("/api/search-updating-shippers", searchUpdatingShippers);
 app.get("/api/search-canceling-shippers", searchCancelingShippers);
-
 app.get("/api/shipper-update-details/:id", getShipperUpdateDetails);
 
 // 📌 --- REVENUE ROUTES ---
@@ -98,6 +138,48 @@ app.get("/api/alerts", getAlerts);
 // Contact Routes
 app.post("/api/contact/submit", submitContact);
 app.get("/api/contact/list", getContacts);
+
+ app.put("/api/shippers/:id", updateShipper);
+ 
+// API: Lấy danh sách shipper đang chờ duyệt cập nhật
+app.get("/api/pending-update-shippers", getUpdatingShippers);
+
+// API: Lấy danh sách shipper đang chờ duyệt hủy tài khoản
+app.get("/api/pending-cancel-shippers", getCancelingShippers);
+
+// API: Lấy danh sách shipper đã duyệt (Active)
+app.get("/api/active-shippers", getShippers);
+// API: Duyệt shipper
+app.post("/api/approve-shipper", approveShipper);
+
+// API: Từ chối shipper
+app.post("/api/reject-shipper", rejectRegisterShipper);
+// API: Lấy thông tin chi tiết của shipper
+app.get("/api/shippers/:id", getShipperDetails);
+// API tìm kiếm shipper
+app.get("/api/search-approved-shippers", searchApprovedShippers);
+
+app.get("/api/search-pending-shippers", searchPendingShippers);
+
+app.get("/api/search-updating-shippers", searchUpdatingShippers);
+
+app.get("/api/search-canceling-shippers", searchCancelingShippers);
+// API: Cập nhât trạng thái shipper
+app.post("/api/change-shipper-status", changeShipperStatus);
+// API: Chi tiết cập nhật thông tin shipper
+app.get("/api/shipper-update-details/:id", getShipperUpdateDetails);
+
+//API: Sự cố shipper
+app.post("/api/reports/order", createOrderReport);
+app.post("/api/reports/shipper", createShipperReport);
+app.get("/api/order-reports", getOrderReports);
+app.get("/api/shipper-reports", getShipperReports);
+app.put("/api/reports/:reportId", updateReportStatus);
+app.get("/api/customer-order-reports", getCustomerOrderReports);
+app.put("/api/orders/:id/status", changeStatusOrder);
+
+// API: AI
+app.use('/api', chatRoutes);
 
 // Chạy server
 const PORT = process.env.PORT || 5000;
