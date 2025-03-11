@@ -90,7 +90,7 @@ app.get("/api/revenue-overview", getRevenueOverview);
 app.get("/api/revenue-by-day", getRevenueByDay);
 app.get("/api/revenue-by-region", getRevenueByRegion);
 app.get("/api/revenue-by-service", getRevenueByService);
-app.get("/api/orders", getOrders);
+app.get('/api/orders', getOrders);
 app.get("/api/payments", getPayments);
 app.get("/api/fees", getFees);
 app.get("/api/alerts", getAlerts);
