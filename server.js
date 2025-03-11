@@ -55,7 +55,7 @@ const {
     getCustomerOrderReports
   } = require("./controllers/ReportController");
 
-const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet } = require("./controllers/ShipperAccount");
+const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet } = require("./controllers/ShipperAccount");
 const app = express();
 
 // Enhanced CORS configuration
@@ -84,6 +84,10 @@ app.put("/api/shippers/:id/cancel", cancelShipperAccount);
 app.get("/api/shipper/:id/wallet", authenticateToken, getWalletData);
 app.get('/api/shipper/:id/total-wallet', getTotalWallet);
 app.put("/api/shippers/:id", updateShipper);
+app.post('/api/shipper/:id/deposit', depositToWallet);
+app.post('/api/shipper/:id/withdraw', withdrawFromWallet);
+
+
 
 app.get("/api/shippers-auth/:id", authenticateToken, getShipperAccount);
 app.post("/api/approve-shipper", approveShipper);
