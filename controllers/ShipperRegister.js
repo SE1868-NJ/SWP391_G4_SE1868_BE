@@ -169,7 +169,7 @@ const addShipper = async (req, res) => {
       LicenseExpiryDate || null,
       CitizenID,
       'PendingRegister',
-      hashedPassword,
+      Password,
       DriverLicenseImage || null,
       VehicleRegistrationImage || null,
       ImageShipper || null,
