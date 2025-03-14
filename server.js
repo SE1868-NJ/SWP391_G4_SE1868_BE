@@ -56,6 +56,8 @@ const {
   } = require("./controllers/ReportController");
 
 const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet } = require("./controllers/ShipperAccount");
+const {getIncidentById,getIncidentCategories,getIncidentTimeStats,getIncidentTypeStats,getIncidentShipperStats,getIncidents,getSummaryStats,getShippers_Incident,exportReport}=require('./controllers/IncidentOp');
+
 const app = express();
 
 // Enhanced CORS configuration
@@ -177,6 +179,24 @@ app.get("/api/shipper-reports", getShipperReports);
 app.put("/api/reports/:reportId", updateReportStatus);
 app.get("/api/customer-order-reports", getCustomerOrderReports);
 app.put("/api/orders/:id/status", changeStatusOrder);
+//API: Operator xem báo cáo sự cố
+app.get("/api/incidents",getIncidents);
+
+app.get("/api/incidents/categories",getIncidentCategories); 
+//Get incident time stats
+app.get("/api/incidents/time-stats",getIncidentTimeStats);
+//Get incident type stats
+app.get("/api/incidents/type-stats",getIncidentTypeStats);
+//Get incident shipper stats
+app.get("/api/incidents/shipper-stats",getIncidentShipperStats);
+//Get summary stats
+app.get("/api/incidents/summary-stats",getSummaryStats);
+//Get shippers incident
+app.get("/api/incidents/shippers",getShippers_Incident);
+//Get incident by id
+app.get("/api/incidents/:id",getIncidentById);
+//Export report
+app.get("/api/export-report",exportReport);
 
 // API: AI
 app.use('/api', chatRoutes);
