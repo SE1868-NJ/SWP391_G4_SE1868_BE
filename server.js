@@ -15,7 +15,8 @@ const {
     getCancelingShippers,
     searchUpdatingShippers,
     searchCancelingShippers,
-    getShipperUpdateDetails
+    getShipperUpdateDetails,
+    getShipperBalance
 } = require("./controllers/ManageShipper");
 
 const { loginShipper } = require("./controllers/Login");
@@ -94,6 +95,8 @@ app.put("/api/shippers/:id", updateShipper);
 app.post('/api/shipper/:id/deposit', depositToWallet);
 app.post('/api/shipper/:id/withdraw', withdrawFromWallet);
 
+// Lấy số dư tài khoản shipper
+app.get("/api/getShipperBalance/:shipperID", authenticateToken, getShipperBalance);
 
 
 app.get("/api/shippers-auth/:id", authenticateToken, getShipperAccount);
