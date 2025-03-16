@@ -1,5 +1,52 @@
-import db from "../config/DBConnect.js";
-import bcrypt from "bcryptjs";
+const db = require("../config/DBConnect");
+const bcrypt = require("bcryptjs");
+
+// Kiểm tra số điện thoại đã tồn tại hay chưa
+const checkPhoneExists = async (req, res) => {
+  try {
+    const { phoneNumber } = req.params;
+    const [rows] = await db.promise().query(
+      'SELECT COUNT(*) as count FROM Shippers WHERE PhoneNumber = ?',
+      [phoneNumber]
+    );
+    res.json({ exists: rows[0].count > 0 });
+  } catch (error) {
+    console.error('Error checking phone:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// Kiểm tra email đã tồn tại hay chưa
+const checkEmailExists = async (req, res) => {
+  try {
+    const { email } = req.params;
+    const [rows] = await db.promise().query(
+      'SELECT COUNT(*) as count FROM Shippers WHERE Email = ?',
+      [email]
+    );
+    res.json({ exists: rows[0].count > 0 });
+  } catch (error) {
+    console.error('Error checking email:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// Kiểm tra CCCD đã tồn tại hay chưa
+const checkCitizenIDExists = async (req, res) => {
+  try {
+    const { citizenId } = req.params;
+    const [rows] = await db.promise().query(
+      'SELECT COUNT(*) as count FROM Shippers WHERE CitizenID = ?',
+      [citizenId]
+    );
+    res.json({ exists: rows[0].count > 0 });
+  } catch (error) {
+    console.error('Error checking CitizenID:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// Thêm shipper mới
 const addShipper = async (req, res) => {
   try {
     const {
@@ -90,10 +137,6 @@ const addShipper = async (req, res) => {
         message: 'Số CCCD đã được đăng ký'
       });
     }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(Password, 10);
-
     const query = `
       INSERT INTO Shippers (
         FullName, PhoneNumber, Email, DateOfBirth,
@@ -126,7 +169,7 @@ const addShipper = async (req, res) => {
       LicenseExpiryDate || null,
       CitizenID,
       'PendingRegister',
-      hashedPassword,
+      Password,
       DriverLicenseImage || null,
       VehicleRegistrationImage || null,
       ImageShipper || null,
@@ -152,4 +195,10 @@ const addShipper = async (req, res) => {
     });
   }
 };
-export { addShipper };
+
+module.exports = {
+  addShipper,
+  checkPhoneExists,
+  checkEmailExists,
+  checkCitizenIDExists
+};

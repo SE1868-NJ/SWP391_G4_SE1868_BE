@@ -285,36 +285,25 @@ const getWalletData = async (req, res) => {
         console.error('Error fetching wallet data:', err);
         return res.status(500).json({ success: false, message: 'Lỗi khi lấy dữ liệu ví' });
       }
-      console.log('Query Results:', results); // Kiểm tra kết quả từ DB
+      console.log('Query Results:', results);
 
-      const data = results.map(row => {
-        const orderCount = row.orderCount;
-        let bonus = 0;
-        const bonusPerMilestone = 2000;
-        if (orderCount >= 20) bonus = bonusPerMilestone * 20;
-        else if (orderCount >= 15) bonus = bonusPerMilestone * 15;
-        else if (orderCount >= 10) bonus = bonusPerMilestone * 10;
-        else if (orderCount >= 5) bonus = bonusPerMilestone * 5;
-        const dailyTotal = Number(row.totalShippingFee || 0) + Number(row.totalExtraMoney || 0) + bonus;
-        return {
-          deliveryDate: row.deliveryDate,
-          orderCount,
-          totalShippingFee: row.totalShippingFee || 0,
-          totalExtraMoney: row.totalExtraMoney || 0,
-          bonus,
-          dailyTotal
-        };
-      });
+      const data = results.map(row => ({
+        deliveryDate: row.deliveryDate,
+        orderCount: row.orderCount,
+        totalShippingFee: row.totalShippingFee || 0,
+        totalExtraMoney: row.totalExtraMoney || 0,
+        dailyTotal: Number(row.totalShippingFee || 0) + Number(row.totalExtraMoney || 0) // Không có bonus
+      }));
 
       const totals = {
         totalOrderCount: data.reduce((sum, row) => sum + row.orderCount, 0),
         totalShippingFee: data.reduce((sum, row) => sum + Number(row.totalShippingFee), 0),
         totalExtraMoney: data.reduce((sum, row) => sum + Number(row.totalExtraMoney), 0),
-        totalBonus: data.reduce((sum, row) => sum + row.bonus, 0)
+        total: data.reduce((sum, row) => sum + row.dailyTotal, 0) // Tổng không có bonus
       };
 
-      console.log('Processed Data:', data); // Kiểm tra dữ liệu sau khi xử lý
-      console.log('Totals:', totals); // Kiểm tra totals
+      console.log('Processed Data:', data);
+      console.log('Totals:', totals);
       res.status(200).json({
         success: true,
         data: { dailyData: data, totals }
@@ -334,12 +323,9 @@ const getTotalWallet = async (req, res) => {
     }
 
     const query = `
-      SELECT 
-        SUM(ShippingFee) AS totalShippingFee,
-        SUM(ExtraMoney) AS totalExtraMoney,
-        COUNT(*) AS orderCount
-      FROM Orders
-      WHERE ShipperID = ? AND OrderStatus = 'Delivered'
+      SELECT Balance AS totalWallet
+      FROM EWallet
+      WHERE ShipperID = ?
     `;
     const queryParams = [shipperId];
 
@@ -349,41 +335,21 @@ const getTotalWallet = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Lỗi khi lấy dữ liệu tổng ví' });
       }
 
-      const result = results[0];
-      const orderCount = result.orderCount || 0;
-      let totalBonus = 0;
-      const bonusPerMilestone = 2000;
-
-      db.query(`
-        SELECT COUNT(*) AS dailyOrderCount
-        FROM Orders
-        WHERE ShipperID = ? AND OrderStatus = 'Delivered'
-        GROUP BY DATE(ActualDeliveryTime)
-      `, [shipperId], (err, dailyResults) => {
-        if (err) {
-          console.error('Error fetching daily order counts:', err);
-          return res.status(500).json({ success: false, message: 'Lỗi khi tính bonus' });
-        }
-
-        dailyResults.forEach(row => {
-          const dailyCount = row.dailyOrderCount;
-          if (dailyCount >= 20) totalBonus += bonusPerMilestone * 20;
-          else if (dailyCount >= 15) totalBonus += bonusPerMilestone * 15;
-          else if (dailyCount >= 10) totalBonus += bonusPerMilestone * 10;
-          else if (dailyCount >= 5) totalBonus += bonusPerMilestone * 5;
-        });
-
-        const totalWallet = (Number(result.totalShippingFee) || 0) + (Number(result.totalExtraMoney) || 0) + totalBonus;
-
-        res.status(200).json({
+      if (results.length === 0) {
+        // Nếu không tìm thấy ví, trả về số dư = 0
+        return res.status(200).json({
           success: true,
           data: {
-            totalWallet: totalWallet,
-            totalShippingFee: Number(result.totalShippingFee) || 0,
-            totalExtraMoney: Number(result.totalExtraMoney) || 0,
-            totalBonus: totalBonus
+            totalWallet: 0
           }
         });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          totalWallet: Number(results[0].totalWallet) || 0
+        }
       });
     });
   } catch (error) {
@@ -391,10 +357,205 @@ const getTotalWallet = async (req, res) => {
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
+const depositToWallet = async (req, res) => {
+  try {
+    const shipperId = req.params.id;
+    const { amount } = req.body;
+
+    if (!shipperId || !amount || isNaN(amount) || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'ShipperID và số tiền hợp lệ là bắt buộc'
+      });
+    }
+
+    // Kiểm tra xem shipper có tồn tại không
+    const checkShipperQuery = `SELECT ShipperID FROM Shippers WHERE ShipperID = ?`;
+    db.query(checkShipperQuery, [shipperId], (err, results) => {
+      if (err) {
+        console.error('Error checking shipper:', err);
+        return res.status(500).json({
+          success: false,
+          message: 'Lỗi khi kiểm tra shipper'
+        });
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy shipper'
+        });
+      }
+
+      // Cập nhật số dư ví
+      const updateWalletQuery = `
+        UPDATE EWallet
+        SET Balance = Balance + ?
+        WHERE ShipperID = ?
+      `;
+      db.query(updateWalletQuery, [amount, shipperId], (err, result) => {
+        if (err) {
+          console.error('Error updating wallet:', err);
+          return res.status(500).json({
+            success: false,
+            message: 'Lỗi khi cập nhật ví'
+          });
+        }
+
+        if (result.affectedRows === 0) {
+          return res.status(404).json({
+            success: false,
+            message: 'Không tìm thấy ví của shipper'
+          });
+        }
+
+        // Lấy số dư mới sau khi cập nhật
+        const getNewBalanceQuery = `SELECT Balance FROM EWallet WHERE ShipperID = ?`;
+        db.query(getNewBalanceQuery, [shipperId], (err, results) => {
+          if (err) {
+            console.error('Error fetching new balance:', err);
+            return res.status(500).json({
+              success: false,
+              message: 'Lỗi khi lấy số dư mới'
+            });
+          }
+
+          res.status(200).json({
+            success: true,
+            data: {
+              newBalance: results[0].Balance
+            }
+          });
+        });
+      });
+    });
+  } catch (error) {
+    console.error('Server error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server'
+    });
+  }
+};
+const withdrawFromWallet = async (req, res) => {
+  try {
+    const shipperId = req.params.id;
+    const { amount } = req.body;
+
+    if (!shipperId || !amount || isNaN(amount) || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'ShipperID và số tiền hợp lệ là bắt buộc'
+      });
+    }
+
+    // Kiểm tra xem shipper có tồn tại không
+    const checkShipperQuery = `SELECT ShipperID FROM Shippers WHERE ShipperID = ?`;
+    db.query(checkShipperQuery, [shipperId], (err, results) => {
+      if (err) {
+        console.error('Error checking shipper:', err);
+        return res.status(500).json({
+          success: false,
+          message: 'Lỗi khi kiểm tra shipper'
+        });
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy shipper'
+        });
+      }
+
+      // Kiểm tra số dư ví có đủ không
+      const checkBalanceQuery = `
+        SELECT Balance FROM EWallet
+        WHERE ShipperID = ?
+      `;
+      db.query(checkBalanceQuery, [shipperId], (err, balanceResults) => {
+        if (err) {
+          console.error('Error checking balance:', err);
+          return res.status(500).json({
+            success: false,
+            message: 'Lỗi khi kiểm tra số dư ví'
+          });
+        }
+
+        if (balanceResults.length === 0) {
+          return res.status(404).json({
+            success: false,
+            message: 'Không tìm thấy ví của shipper'
+          });
+        }
+
+        const currentBalance = parseFloat(balanceResults[0].Balance || 0);
+        if (currentBalance < amount) {
+          return res.status(400).json({
+            success: false,
+            message: 'Số dư trong ví không đủ để thực hiện giao dịch'
+          });
+        }
+
+        // Cập nhật số dư ví
+        const updateWalletQuery = `
+          UPDATE EWallet
+          SET Balance = Balance - ?
+          WHERE ShipperID = ?
+        `;
+        db.query(updateWalletQuery, [amount, shipperId], (err, result) => {
+          if (err) {
+            console.error('Error updating wallet:', err);
+            return res.status(500).json({
+              success: false,
+              message: 'Lỗi khi cập nhật ví'
+            });
+          }
+
+          if (result.affectedRows === 0) {
+            return res.status(404).json({
+              success: false,
+              message: 'Không tìm thấy ví của shipper'
+            });
+          }
+
+          // Lấy số dư mới sau khi cập nhật
+          const getNewBalanceQuery = `SELECT Balance FROM EWallet WHERE ShipperID = ?`;
+          db.query(getNewBalanceQuery, [shipperId], (err, results) => {
+            if (err) {
+              console.error('Error fetching new balance:', err);
+              return res.status(500).json({
+                success: false,
+                message: 'Lỗi khi lấy số dư mới'
+              });
+            }
+
+            // Thêm vào bảng lịch sử giao dịch (nếu có)
+            // Code thêm lịch sử giao dịch ở đây nếu cần
+
+            res.status(200).json({
+              success: true,
+              data: {
+                newBalance: results[0].Balance
+              }
+            });
+          });
+        });
+      });
+    });
+  } catch (error) {
+    console.error('Server error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server'
+    });
+  }
+};
 module.exports = {
   getShipperAccount,
   cancelShipperAccount,
   updateShipper,
   getWalletData,
-  getTotalWallet
+  getTotalWallet,
+  depositToWallet,
+  withdrawFromWallet 
 };
