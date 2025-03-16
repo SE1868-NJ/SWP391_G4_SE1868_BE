@@ -58,7 +58,13 @@ const {
 
 const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet } = require("./controllers/ShipperAccount");
 const app = express();
-
+// Notification
+const { 
+    getNotifications, 
+    markAsRead, 
+    createOrderNotification,
+    markAllNotificationsAsRead 
+} = require("./controllers/NotificationController");
 // Enhanced CORS configuration
 app.use(cors({
     origin: "http://localhost:3000",
@@ -188,9 +194,12 @@ app.put("/api/orders/:id/status", changeStatusOrder);
 
 // API: AI
 app.use('/api', chatRoutes);
-
+//notifications
+app.get("/api/notifications", getNotifications); // Lấy danh sách thông báo
+app.put("/api/notifications/:id/read", markAsRead); // Đánh dấu thông báo đã đọc
+app.put("/api/notifications/mark-all-read", markAllNotificationsAsRead);
 // Chạy server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
