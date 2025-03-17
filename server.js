@@ -61,10 +61,18 @@ const app = express();
 // Notification
 const { 
     getNotifications, 
-    markAsRead, 
+    markAsRead: markNotificationAsRead, 
     createOrderNotification,
     markAllNotificationsAsRead 
 } = require("./controllers/NotificationController");
+// Notifications Admin
+const {
+    getAdminNotifications,
+    createAdminNotification,
+    markAsRead: markAdminNotificationAsRead,
+    markAllAsRead,
+    deleteAdminNotification,
+  } = require("./controllers/AdminNotificationController");
 // Enhanced CORS configuration
 app.use(cors({
     origin: "http://localhost:3000",
@@ -196,8 +204,15 @@ app.put("/api/orders/:id/status", changeStatusOrder);
 app.use('/api', chatRoutes);
 //notifications
 app.get("/api/notifications", getNotifications); // Lấy danh sách thông báo
-app.put("/api/notifications/:id/read", markAsRead); // Đánh dấu thông báo đã đọc
+app.put("/api/notifications/:id/read", markNotificationAsRead); // Đánh dấu thông báo đã đọc
 app.put("/api/notifications/mark-all-read", markAllNotificationsAsRead);
+//notifications admin
+app.get("/api/admin-notifications", getAdminNotifications); // Lấy danh sách thông báo
+app.post("/api/admin-notifications", createAdminNotification); // Tạo thông báo mới
+app.put("/api/admin-notifications/:id/read", markAdminNotificationAsRead); // Đánh dấu một thông báo là đã đọc
+app.put("/api/admin-notifications/mark-all-read", markAllAsRead); // Đánh dấu tất cả là đã đọc
+app.delete("/api/admin-notifications/:id", deleteAdminNotification); // Xóa thông báo (tùy chọn)
+
 // Chạy server
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
