@@ -60,7 +60,13 @@ const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, g
 const {getIncidentById,getIncidentCategories,getIncidentTimeStats,getIncidentTypeStats,getIncidentShipperStats,getIncidents,getSummaryStats,getShippers_Incident,exportReport}=require('./controllers/IncidentOp');
 
 const app = express();
-
+// Notification
+const { 
+    getNotifications, 
+    markAsRead, 
+    createOrderNotification,
+    markAllNotificationsAsRead 
+} = require("./controllers/NotificationController");
 // Enhanced CORS configuration
 app.use(cors({
     origin: "http://localhost:3000",
@@ -208,9 +214,12 @@ app.get("/api/export-report",exportReport);
 
 // API: AI
 app.use('/api', chatRoutes);
-
+//notifications
+app.get("/api/notifications", getNotifications); // Lấy danh sách thông báo
+app.put("/api/notifications/:id/read", markAsRead); // Đánh dấu thông báo đã đọc
+app.put("/api/notifications/mark-all-read", markAllNotificationsAsRead);
 // Chạy server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
