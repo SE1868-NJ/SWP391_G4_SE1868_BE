@@ -56,7 +56,8 @@ const {
     getCustomerOrderReports
 } = require("./controllers/ReportController");
 
-const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet } = require("./controllers/ShipperAccount");
+const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, 
+    getTotalWallet, depositToWallet, withdrawFromWallet, handleMoMoIPN, getOrderDetailsByDate } = require("./controllers/ShipperAccount");
 const app = express();
 
 // Enhanced CORS configuration
@@ -82,13 +83,13 @@ app.get("/api/shippers", getShippers);
 
 app.put("/api/shippers/:id/update", updateShipper);
 app.put("/api/shippers/:id/cancel", cancelShipperAccount);
-app.get("/api/shipper/:id/wallet", authenticateToken, getWalletData);
+app.get("/api/shipper/:id/raw-wallet", getWalletData);
 app.get('/api/shipper/:id/total-wallet', getTotalWallet);
 app.put("/api/shippers/:id", updateShipper);
 app.post('/api/shipper/:id/deposit', depositToWallet);
 app.post('/api/shipper/:id/withdraw', withdrawFromWallet);
-
-
+app.post('/api/momo-ipn', handleMoMoIPN);
+app.get('/api/shipper/:id/orders-by-date', getOrderDetailsByDate);
 
 app.get("/api/shippers-auth/:id", authenticateToken, getShipperAccount);
 app.post("/api/approve-shipper", approveShipper);
