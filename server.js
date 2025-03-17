@@ -57,7 +57,7 @@ const {
 } = require("./controllers/ReportController");
 
 const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, 
-    getTotalWallet, depositToWallet, withdrawFromWallet, handleMoMoIPN, getOrderDetailsByDate } = require("./controllers/ShipperAccount");
+    getTotalWallet, depositToWallet, withdrawFromWallet , getOrderDetailsByDate, updateWalletBalance } = require("./controllers/ShipperAccount");
 const app = express();
 // Notification
 const { 
@@ -94,8 +94,8 @@ app.get('/api/shipper/:id/total-wallet', getTotalWallet);
 app.put("/api/shippers/:id", updateShipper);
 app.post('/api/shipper/:id/deposit', depositToWallet);
 app.post('/api/shipper/:id/withdraw', withdrawFromWallet);
-app.post('/api/momo-ipn', handleMoMoIPN);
 app.get('/api/shipper/:id/orders-by-date', getOrderDetailsByDate);
+app.post('/api/shipper/:id/update-wallet', updateWalletBalance);
 
 app.get("/api/shippers-auth/:id", authenticateToken, getShipperAccount);
 app.post("/api/approve-shipper", approveShipper);
@@ -200,7 +200,7 @@ app.get("/api/notifications", getNotifications); // Lấy danh sách thông báo
 app.put("/api/notifications/:id/read", markAsRead); // Đánh dấu thông báo đã đọc
 app.put("/api/notifications/mark-all-read", markAllNotificationsAsRead);
 // Chạy server
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
