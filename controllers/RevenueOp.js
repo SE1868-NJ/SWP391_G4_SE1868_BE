@@ -2,7 +2,7 @@ const db = require('../config/DBConnect');
 
 // API lấy tổng quan doanh thu
 const getRevenueOverview = (req, res) => {
-  const { timePeriod, region, serviceType, shipperCode } = req.query;
+  const { timePeriod, startDate, endDate, region, serviceType, shipperCode } = req.query;
 
   let query = `
     SELECT 
@@ -17,7 +17,12 @@ const getRevenueOverview = (req, res) => {
   const queryParams = [];
 
   // Thêm bộ lọc khoảng thời gian
-  if (timePeriod) {
+  if (timePeriod === 'custom' && startDate && endDate) {
+    // Lọc theo khoảng thời gian tùy chỉnh
+    query += ' AND r.RevenueDate BETWEEN ? AND ?';
+    queryParams.push(startDate, endDate);
+  } else if (timePeriod) {
+    // Các lọc cố định như cũ
     switch(timePeriod) {
       case 'day':
         query += ' AND r.RevenueDate = CURRENT_DATE';
@@ -62,7 +67,7 @@ const getRevenueOverview = (req, res) => {
 
 // API lấy doanh thu theo ngày
 const getRevenueByDay = (req, res) => {
-  const { timePeriod, region, serviceType, shipperCode } = req.query;
+  const { timePeriod, startDate, endDate, region, serviceType, shipperCode } = req.query;
 
   let query = `
     SELECT 
@@ -76,7 +81,12 @@ const getRevenueByDay = (req, res) => {
   const queryParams = [];
 
   // Thêm bộ lọc khoảng thời gian
-  if (timePeriod) {
+  if (timePeriod === 'custom' && startDate && endDate) {
+    // Lọc theo khoảng thời gian tùy chỉnh
+    query += ' AND r.RevenueDate BETWEEN ? AND ?';
+    queryParams.push(startDate, endDate);
+  } else if (timePeriod) {
+    // Các lọc cố định như cũ
     switch(timePeriod) {
       case 'day':
         query += ' AND r.RevenueDate = CURRENT_DATE';
