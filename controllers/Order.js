@@ -1,4 +1,6 @@
 const db = require("../config/DBConnect"); 
+const { createOrderNotification } = require("./NotificationController");
+
 
 const getOrdersPending = (req, res) => {
     try {
@@ -225,20 +227,42 @@ const getHistoryDeliveryOrders = (req, res) => {
 };
 
 const confirmDeliveryOrder = (req, res) => {
-    const { OrderID,Status } = req.body;
-    try{
+    const { OrderID, Status } = req.body;
+    try {
         const sql = `UPDATE swp_shipper.orders
                     SET
                     OrderStatus = ?,
                     ActualDeliveryTime = CURRENT_TIMESTAMP
                     WHERE OrderID = ?`;
-        db.query(sql, [Status, OrderID], (err, results) => {
+        
+        db.query(sql, [Status, OrderID], async (err, results) => {
             if (err) {
-            return res.status(500).send(err.message);
+                return res.status(500).send(err.message);
             }
-            res.json({ message: "Status updated successfully!" });
+
+            try {
+                // Lấy thông tin shipper từ đơn hàng
+                const shipperQuery = 'SELECT ShipperID FROM swp_shipper.orders WHERE OrderID = ?';
+                db.query(shipperQuery, [OrderID], async (shipperErr, shipperResults) => {
+                    if (shipperErr) {
+                        console.error("Error fetching shipper:", shipperErr);
+                        return res.json({ message: "Status updated successfully!" });
+                    }
+
+                    if (shipperResults.length > 0) {
+                        const shipperId = shipperResults[0].ShipperID;
+                        // Tạo thông báo khi xác nhận đơn
+                        await createOrderNotification(shipperId, OrderID, Status);
+                    }
+
+                    res.json({ message: "Status updated successfully!" });
+                });
+            } catch (notifError) {
+                console.error("Error creating notification:", notifError);
+                res.json({ message: "Status updated successfully, but notification failed" });
+            }
         });
-    }catch(error){
+    } catch(error) {
         console.log(error);
         if (error.code === 'ER_DUP_ENTRY') {
             return res.status(500).send('OrderID already exists');  
@@ -307,32 +331,6 @@ const getOrderDetails = async (req, res) => {
         res.status(500).send("Internal server error.");
     }
 };
-const pickOrder = (req, res) => {
-    const { OrderID, ShipperID, ShippingFee, EstimatedDeliveryTime } = req.body;
-
-    if (!OrderID || !ShipperID || !ShippingFee || !EstimatedDeliveryTime) {
-        return res.status(400).json({ message: "Missing required fields" });
-    }
-    const sql = `
-        UPDATE orders
-        SET ShipperID = ?, OrderStatus = 'InProgress', ShippingFee = ?, EstimatedDeliveryTime = ?
-        WHERE OrderID = ?
-    `;
-
-    db.query(sql, [ShipperID, ShippingFee, EstimatedDeliveryTime, OrderID], (err, result) => {
-        if (err) {
-            console.error("Error updating order:", err);
-            return res.status(500).json({ message: "Internal Server Error" });
-        }
-
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ message: "Order not found" });
-        }
-
-        res.status(200).json({ message: "Order picked successfully", orderId: OrderID });
-    });
-};
-
 
 const getAllMyDeliveryOrders = (req, res) => {
     const UserID = req.params.id;
@@ -349,5 +347,41 @@ const getAllMyDeliveryOrders = (req, res) => {
         console.log(error);
     }
 };
+
+const pickOrder = (req, res) => {
+    const { OrderID, ShipperID, ShippingFee, EstimatedDeliveryTime } = req.body;
+
+    if (!OrderID || !ShipperID || !ShippingFee || !EstimatedDeliveryTime) {
+        return res.status(400).json({ message: "Missing required fields" });
+    }
+    const sql = `
+        UPDATE orders
+        SET ShipperID = ?, OrderStatus = 'InProgress', ShippingFee = ?, EstimatedDeliveryTime = ?
+        WHERE OrderID = ?
+    `;
+
+    db.query(sql, [ShipperID, ShippingFee, EstimatedDeliveryTime, OrderID], async (err, result) => {
+        if (err) {
+            console.error("Error updating order:", err);
+            return res.status(500).json({ message: "Internal Server Error" });
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        try {
+            // Tạo thông báo khi nhận đơn
+            await createOrderNotification(ShipperID, OrderID, 'InProgress');
+            
+            res.status(200).json({ message: "Order picked successfully", orderId: OrderID });
+        } catch (notifError) {
+            console.error("Error creating notification:", notifError);
+            res.status(200).json({ message: "Order picked successfully, but notification failed" });
+        }
+    });
+};
+
+
 
 module.exports = { getOrdersPending,getMyDeliveryOrders,getHistoryDeliveryOrders,changeStatusOrder,getOrderDetails,pickOrder,confirmDeliveryOrder,getAllMyDeliveryOrders};
