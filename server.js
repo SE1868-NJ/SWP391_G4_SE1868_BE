@@ -16,7 +16,7 @@ const {
     searchUpdatingShippers,
     searchCancelingShippers,
     getShipperUpdateDetails
-} = require("./controllers/ManageShipper");
+} = require("./controllers/Manageshipper");
 
 const { loginShipper } = require("./controllers/Login");
 const { addShipper, checkPhoneExists, checkEmailExists, checkCitizenIDExists } = require('./controllers/ShipperRegister');

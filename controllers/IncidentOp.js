@@ -1,6 +1,6 @@
 const db = require('../config/DBConnect');
 const { validationResult } = require('express-validator');
-const { getShippers } = require('./ManageShipper');
+const { getShippers } = require('./Manageshipper');
 
 // ======= API lấy danh sách sự cố =======
 const getIncidents = async (req, res) => {
