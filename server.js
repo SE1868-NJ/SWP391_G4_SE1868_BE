@@ -39,7 +39,8 @@ const {
     getMyDeliveryOrders,
     getHistoryDeliveryOrders,
     pickOrder, confirmDeliveryOrder,
-    getAllMyDeliveryOrders
+    getAllMyDeliveryOrders,
+    updateShippingFee
 } = require("./controllers/Order");
 const {
     getShipperDetails,
@@ -185,6 +186,8 @@ app.get("/api/search-canceling-shippers", searchCancelingShippers);
 app.post("/api/change-shipper-status", changeShipperStatus);
 // API: Chi tiết cập nhật thông tin shipper
 app.get("/api/shipper-update-details/:id", getShipperUpdateDetails);
+// API: Chi tiết cập nhật phí ship
+app.put('/api/updateShippingFee', updateShippingFee);
 
 //API: Sự cố shipper
 app.post("/api/reports/order", createOrderReport);
