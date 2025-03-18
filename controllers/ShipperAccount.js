@@ -387,7 +387,7 @@ const depositToWallet = async (req, res) => {
           secretKey: 'K951B6PE1waDMi640xX08PD3vg6EkVlz',
           partnerCode: 'MOMO',
           redirectUrl: 'http://localhost:3000/shipper-account',
-          ipnUrl: 'http://localhost:4000/api/momo-ipn',
+          ipnUrl: 'http://localhost:5000/api/momo-ipn',
           lang: 'vi',
         };
 

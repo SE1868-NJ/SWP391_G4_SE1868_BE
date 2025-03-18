@@ -1,20 +1,20 @@
 const db = require('../config/DBConnect');
-
+const { createAdminNotification } = require("./AdminNotificationController");
 
 // API lấy chi tiết shipper theo ID
 const getShipperDetails = (req, res) => {
     const { id } = req.params;
     db.query('SELECT * FROM shippers WHERE ShipperID = ?', [id], (err, result) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      res.json(result[0]);
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(result[0]);
     });
-  };
+};
 // API từ chối đăng ký shipper
-  const rejectRegisterShipper = (req, res) => {
+const rejectRegisterShipper = (req, res) => {
     const { shipperId } = req.body;
-    
+
     try {
         // Kiểm tra xem shipper có tồn tại và đang trong trạng thái PendingRegister không
         const checkSql = "SELECT * FROM Shippers WHERE ShipperID = ? AND Status = 'PendingRegister'";
@@ -23,7 +23,7 @@ const getShipperDetails = (req, res) => {
                 return res.status(500).json({
                     success: false,
                     message: "Lỗi khi kiểm tra thông tin shipper",
-                    error: checkErr.message
+                    //error: checkErr.message
                 });
             }
 
@@ -34,6 +34,7 @@ const getShipperDetails = (req, res) => {
                 });
             }
 
+            const shipperName = checkResult[0].FullName;
             // Thực hiện xóa shipper
             const deleteSql = "DELETE FROM Shippers WHERE ShipperID = ?";
             db.query(deleteSql, [shipperId], (deleteErr, deleteResult) => {
@@ -41,16 +42,28 @@ const getShipperDetails = (req, res) => {
                     return res.status(500).json({
                         success: false,
                         message: "Lỗi khi xóa shipper",
-                        error: deleteErr.message
+                        //error: deleteErr.message
                     });
                 }
+                // Tạo thông báo
+                const notification = {
+                    Title: "Từ Chối Shipper",
+                    Message: `Shipper ${shipperName} (ID: ${shipperId}) đã bị từ chối.`,
+                    Type: "warning",
+                };
+                db.query("INSERT INTO adminnotification (Title, Message, Type) VALUES (?, ?, ?)",
+                    [notification.Title, notification.Message, notification.Type],
+                    (notifErr) => {
+                        if (notifErr) console.error("Lỗi khi tạo thông báo:", notifErr);
+                    }
+                );
 
                 res.json({
                     success: true,
                     message: "Đã từ chối và xóa shipper thành công",
                     data: {
                         shipperId: shipperId,
-                        affectedRows: deleteResult.affectedRows
+                        //affectedRows: deleteResult.affectedRows
                     }
                 });
             });
@@ -59,14 +72,14 @@ const getShipperDetails = (req, res) => {
         res.status(500).json({
             success: false,
             message: "Lỗi server",
-            error: error.message
+            //error: error.message
         });
     }
-  };
+};
 // API: Duyệt đăng ký shipper
 const approveShipper = (req, res) => {
     const { shipperId } = req.body;
-    
+
     try {
         // Kiểm tra xem shipper có tồn tại và đang trong trạng thái PendingRegister không
         const checkSql = "SELECT * FROM Shippers WHERE ShipperID = ? AND Status = 'PendingRegister'";
@@ -75,7 +88,7 @@ const approveShipper = (req, res) => {
                 return res.status(500).json({
                     success: false,
                     message: "Lỗi khi kiểm tra thông tin shipper",
-                    error: checkErr.message
+                    // error: checkErr.message
                 });
             }
 
@@ -87,15 +100,28 @@ const approveShipper = (req, res) => {
             }
 
             // Cập nhật trạng thái shipper thành Active
+            const shipperName = checkResult[0].FullName;
             const updateSql = "UPDATE Shippers SET Status = 'Active' WHERE ShipperID = ?";
             db.query(updateSql, [shipperId], (updateErr, updateResult) => {
                 if (updateErr) {
                     return res.status(500).json({
                         success: false,
                         message: "Lỗi khi cập nhật trạng thái shipper",
-                        error: updateErr.message
+                        // error: updateErr.message
                     });
                 }
+                // Tạo thông báo
+                const notification = {
+                    Title: "Duyệt Shipper Thành Công",
+                    Message: `Shipper ${shipperName} (ID: ${shipperId}) đã được duyệt.`,
+                    Type: "success",
+                };
+                db.query("INSERT INTO adminnotification (Title, Message, Type) VALUES (?, ?, ?)",
+                    [notification.Title, notification.Message, notification.Type],
+                    (notifErr) => {
+                        if (notifErr) console.error("Lỗi khi tạo thông báo:", notifErr);
+                    }
+                );
 
                 res.json({
                     success: true,
@@ -103,7 +129,7 @@ const approveShipper = (req, res) => {
                     data: {
                         shipperId: shipperId,
                         newStatus: 'Active',
-                        affectedRows: updateResult.affectedRows
+                        // affectedRows: updateResult.affectedRows
                     }
                 });
             });
@@ -112,13 +138,13 @@ const approveShipper = (req, res) => {
         res.status(500).json({
             success: false,
             message: "Lỗi server",
-            error: error.message
+            // error: error.message
         });
     }
 };
-  module.exports = {
-    
+module.exports = {
+
     getShipperDetails
-    ,rejectRegisterShipper
-    ,approveShipper
-  };
+    , rejectRegisterShipper
+    , approveShipper
+};
