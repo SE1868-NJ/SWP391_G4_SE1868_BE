@@ -1,5 +1,6 @@
 const db = require('../config/DBConnect');
-
+const axios = require('axios');
+const crypto = require('crypto');
 const getShipperAccount = async (req, res) => {
   try {
     const shipperId = req.params.id;
@@ -31,6 +32,7 @@ const getShipperAccount = async (req, res) => {
         s.DriverLicenseImage,
         s.VehicleRegistrationImage,
         s.ImageShipper,
+        s.IDCardImage,
         s.Status
       FROM Shippers s
       WHERE s.ShipperID = ?
@@ -69,7 +71,7 @@ const getShipperAccount = async (req, res) => {
 const cancelShipperAccount = async (req, res) => {
   try {
     const shipperId = req.params.id;
-    const { reason } = req.body;  // Keep the reason, and set the status to 'PendingCancel'
+    const { reason } = req.body;  
 
     const query = `
         UPDATE Shippers 
@@ -254,63 +256,54 @@ const updateShipper = async (req, res) => {
 const getWalletData = async (req, res) => {
   try {
     const shipperId = req.params.id;
-    const { week } = req.query;
-    console.log('ShipperID:', shipperId, 'Filter Week:', week);
-
-    if (!shipperId) {
-      return res.status(400).json({ success: false, message: 'ShipperID is required' });
-    }
+    const { startDate, endDate, searchDate } = req.query;
 
     let query = `
       SELECT 
-        DATE(ActualDeliveryTime) AS deliveryDate,
-        COUNT(*) AS orderCount,
-        SUM(ShippingFee) AS totalShippingFee,
-        SUM(ExtraMoney) AS totalExtraMoney
+        OrderID,
+        ActualDeliveryTime,
+        ShippingFee,
+        ExtraMoney
       FROM Orders
       WHERE ShipperID = ? AND OrderStatus = 'Delivered'
     `;
     let queryParams = [shipperId];
 
-    if (week) {
-      const [year, weekNum] = week.split('-W');
-      query += ` AND YEAR(ActualDeliveryTime) = ? AND WEEK(ActualDeliveryTime, 1) = ?`;
-      queryParams.push(year, parseInt(weekNum));
+    if (searchDate) {
+      query += ` AND DATE(ActualDeliveryTime) = ?`;
+      queryParams.push(searchDate);
+    } else {
+      if (startDate && endDate) {
+        query += ` AND DATE(ActualDeliveryTime) BETWEEN ? AND ?`;
+        queryParams.push(startDate, endDate);
+      } else if (startDate) {
+        query += ` AND DATE(ActualDeliveryTime) >= ?`;
+        queryParams.push(startDate);
+      } else if (endDate) {
+        query += ` AND DATE(ActualDeliveryTime) <= ?`;
+        queryParams.push(endDate);
+      }
     }
-
-    query += ` GROUP BY DATE(ActualDeliveryTime) ORDER BY deliveryDate DESC`;
+    query += ` ORDER BY ActualDeliveryTime DESC`;
 
     db.query(query, queryParams, (err, results) => {
       if (err) {
-        console.error('Error fetching wallet data:', err);
-        return res.status(500).json({ success: false, message: 'Lỗi khi lấy dữ liệu ví' });
+        console.error('Database error:', err);
+        return res.status(500).json({ success: false, message: 'Lỗi khi lấy dữ liệu đơn hàng' });
       }
-      console.log('Query Results:', results);
 
-      const data = results.map(row => ({
-        deliveryDate: row.deliveryDate,
-        orderCount: row.orderCount,
-        totalShippingFee: row.totalShippingFee || 0,
-        totalExtraMoney: row.totalExtraMoney || 0,
-        dailyTotal: Number(row.totalShippingFee || 0) + Number(row.totalExtraMoney || 0) // Không có bonus
+      const rawData = results.map((row) => ({
+        orderId: row.OrderID,
+        deliveryDate: row.ActualDeliveryTime.toISOString().split('T')[0],
+        shippingFee: Number(row.ShippingFee) || 0,
+        extraMoney: Number(row.ExtraMoney) || 0,
       }));
 
-      const totals = {
-        totalOrderCount: data.reduce((sum, row) => sum + row.orderCount, 0),
-        totalShippingFee: data.reduce((sum, row) => sum + Number(row.totalShippingFee), 0),
-        totalExtraMoney: data.reduce((sum, row) => sum + Number(row.totalExtraMoney), 0),
-        total: data.reduce((sum, row) => sum + row.dailyTotal, 0) // Tổng không có bonus
-      };
-
-      console.log('Processed Data:', data);
-      console.log('Totals:', totals);
-      res.status(200).json({
-        success: true,
-        data: { dailyData: data, totals }
-      });
+      console.log('Raw Data Sent:', rawData); 
+      res.status(200).json({ success: true, data: rawData });
     });
   } catch (error) {
-    console.error('Server error:', error);
+    console.error('Get Raw Wallet Error:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
@@ -360,80 +353,137 @@ const getTotalWallet = async (req, res) => {
 const depositToWallet = async (req, res) => {
   try {
     const shipperId = req.params.id;
-    const { amount } = req.body;
+    const { amount, isManualUpdate = false } = req.body; // Thêm isManualUpdate để phân biệt
 
+    // Kiểm tra đầu vào cơ bản
     if (!shipperId || !amount || isNaN(amount) || amount <= 0) {
       return res.status(400).json({
         success: false,
-        message: 'ShipperID và số tiền hợp lệ là bắt buộc'
+        message: 'ShipperID và số tiền hợp lệ là bắt buộc',
       });
     }
 
-    // Kiểm tra xem shipper có tồn tại không
+    // Kiểm tra shipper tồn tại
     const checkShipperQuery = `SELECT ShipperID FROM Shippers WHERE ShipperID = ?`;
-    db.query(checkShipperQuery, [shipperId], (err, results) => {
+    db.query(checkShipperQuery, [shipperId], (err, shipperResults) => {
       if (err) {
         console.error('Error checking shipper:', err);
         return res.status(500).json({
           success: false,
-          message: 'Lỗi khi kiểm tra shipper'
+          message: 'Lỗi khi kiểm tra shipper',
         });
       }
-
-      if (results.length === 0) {
+      if (shipperResults.length === 0) {
         return res.status(404).json({
           success: false,
-          message: 'Không tìm thấy shipper'
+          message: 'Không tìm thấy shipper',
         });
       }
 
-      // Cập nhật số dư ví
-      const updateWalletQuery = `
-        UPDATE EWallet
-        SET Balance = Balance + ?
-        WHERE ShipperID = ?
-      `;
-      db.query(updateWalletQuery, [amount, shipperId], (err, result) => {
-        if (err) {
-          console.error('Error updating wallet:', err);
-          return res.status(500).json({
-            success: false,
-            message: 'Lỗi khi cập nhật ví'
-          });
-        }
+      // Nếu không phải cập nhật thủ công, thực hiện giao dịch MoMo
+      if (!isManualUpdate) {
+        const momoConfig = {
+          accessKey: 'F8BBA842ECF85',
+          secretKey: 'K951B6PE1waDMi640xX08PD3vg6EkVlz',
+          partnerCode: 'MOMO',
+          redirectUrl: 'http://localhost:3000/shipper-account',
+          ipnUrl: 'http://localhost:4000/api/momo-ipn',
+          lang: 'vi',
+        };
 
-        if (result.affectedRows === 0) {
-          return res.status(404).json({
-            success: false,
-            message: 'Không tìm thấy ví của shipper'
-          });
-        }
+        const orderId = `${momoConfig.partnerCode}${Date.now()}`;
+        const requestId = orderId;
+        const orderInfo = `Nạp ${amount} VNĐ - Shipper ${shipperId}`;
+        const extraData = Buffer.from(JSON.stringify({ shipperId, depositAmount: amount })).toString('base64');
+        const momoParams = {
+          accessKey: momoConfig.accessKey,
+          amount: amount.toString(),
+          extraData,
+          ipnUrl: momoConfig.ipnUrl,
+          orderId,
+          orderInfo,
+          partnerCode: momoConfig.partnerCode,
+          redirectUrl: momoConfig.redirectUrl,
+          requestId,
+          requestType: 'captureWallet',
+        };
 
-        // Lấy số dư mới sau khi cập nhật
-        const getNewBalanceQuery = `SELECT Balance FROM EWallet WHERE ShipperID = ?`;
-        db.query(getNewBalanceQuery, [shipperId], (err, results) => {
+        const rawSignature = Object.entries(momoParams)
+          .map(([key, value]) => `${key}=${value}`)
+          .sort()
+          .join('&');
+        const signature = crypto.createHmac('sha256', momoConfig.secretKey).update(rawSignature).digest('hex');
+
+        const requestBody = {
+          ...momoParams,
+          partnerName: 'ShipperApp',
+          storeId: 'ShipperTestStore',
+          lang: momoConfig.lang,
+          signature,
+        };
+
+        axios
+          .post('https://test-payment.momo.vn/v2/gateway/api/create', requestBody, {
+            headers: { 'Content-Type': 'application/json' },
+          })
+          .then((response) => {
+            if (response.data.resultCode === 0) {
+              res.status(200).json({ success: true, payUrl: response.data.payUrl });
+            } else {
+              res.status(400).json({
+                success: false,
+                message: response.data.message || 'Lỗi khi khởi tạo thanh toán MoMo',
+              });
+            }
+          })
+          .catch((error) => {
+            console.error('MoMo request error:', error);
+            res.status(500).json({
+              success: false,
+              message: 'Lỗi khi gửi yêu cầu thanh toán MoMo',
+            });
+          });
+      } else {
+        // Cập nhật thủ công: xử lý logic từ updateWalletBalance
+        const updateWalletQuery = `UPDATE EWallet SET Balance = Balance + ? WHERE ShipperID = ?`;
+        db.query(updateWalletQuery, [amount, shipperId], (err, result) => {
           if (err) {
-            console.error('Error fetching new balance:', err);
+            console.error('Error updating wallet:', err);
             return res.status(500).json({
               success: false,
-              message: 'Lỗi khi lấy số dư mới'
+              message: 'Lỗi khi cập nhật ví',
+            });
+          }
+          if (result.affectedRows === 0) {
+            return res.status(404).json({
+              success: false,
+              message: 'Không tìm thấy ví của shipper',
             });
           }
 
-          res.status(200).json({
-            success: true,
-            data: {
-              newBalance: results[0].Balance
+          // Lấy số dư mới sau khi cập nhật
+          const getNewBalanceQuery = `SELECT Balance FROM EWallet WHERE ShipperID = ?`;
+          db.query(getNewBalanceQuery, [shipperId], (err, balanceResults) => {
+            if (err) {
+              console.error('Error fetching new balance:', err);
+              return res.status(500).json({
+                success: false,
+                message: 'Lỗi khi lấy số dư mới',
+              });
             }
+            res.status(200).json({
+              success: true,
+              data: { newBalance: Number(balanceResults[0].Balance) || 0 },
+            });
           });
         });
-      });
+      }
     });
   } catch (error) {
     console.error('Server error:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi server'
+      message: 'Lỗi server',
     });
   }
 };
@@ -449,7 +499,6 @@ const withdrawFromWallet = async (req, res) => {
       });
     }
 
-    // Kiểm tra xem shipper có tồn tại không
     const checkShipperQuery = `SELECT ShipperID FROM Shippers WHERE ShipperID = ?`;
     db.query(checkShipperQuery, [shipperId], (err, results) => {
       if (err) {
@@ -467,7 +516,6 @@ const withdrawFromWallet = async (req, res) => {
         });
       }
 
-      // Kiểm tra số dư ví có đủ không
       const checkBalanceQuery = `
         SELECT Balance FROM EWallet
         WHERE ShipperID = ?
@@ -496,7 +544,6 @@ const withdrawFromWallet = async (req, res) => {
           });
         }
 
-        // Cập nhật số dư ví
         const updateWalletQuery = `
           UPDATE EWallet
           SET Balance = Balance - ?
@@ -518,7 +565,6 @@ const withdrawFromWallet = async (req, res) => {
             });
           }
 
-          // Lấy số dư mới sau khi cập nhật
           const getNewBalanceQuery = `SELECT Balance FROM EWallet WHERE ShipperID = ?`;
           db.query(getNewBalanceQuery, [shipperId], (err, results) => {
             if (err) {
@@ -528,10 +574,6 @@ const withdrawFromWallet = async (req, res) => {
                 message: 'Lỗi khi lấy số dư mới'
               });
             }
-
-            // Thêm vào bảng lịch sử giao dịch (nếu có)
-            // Code thêm lịch sử giao dịch ở đây nếu cần
-
             res.status(200).json({
               success: true,
               data: {
@@ -550,6 +592,75 @@ const withdrawFromWallet = async (req, res) => {
     });
   }
 };
+const getOrderDetailsByDate = async (req, res) => {
+  try {
+    const shipperId = req.params.id;
+    const { deliveryDate } = req.query;
+
+    console.log('Received request - shipperId:', shipperId, 'deliveryDate:', deliveryDate);
+
+    if (!shipperId || !deliveryDate) {
+      console.log('Missing shipperId or deliveryDate');
+      return res.status(400).json({
+        success: false,
+        message: 'ShipperID và ngày giao hàng là bắt buộc',
+      });
+    }
+
+    const query = `
+      SELECT 
+        OrderID,
+        OrderStatus,
+        ShippingFee,
+        ExtraMoney,
+        ActualDeliveryTime,
+        DeliveryAddress
+      FROM Orders
+      WHERE ShipperID = ? 
+        AND DATE(ActualDeliveryTime) = ?
+        AND OrderStatus = 'Delivered'
+      ORDER BY ActualDeliveryTime DESC
+    `;
+    const queryParams = [shipperId, deliveryDate];
+
+    console.log('Executing query:', query, 'with params:', queryParams);
+
+    db.query(query, queryParams, (err, results) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({
+          success: false,
+          message: 'Lỗi khi lấy chi tiết đơn hàng',
+          error: err.message,
+        });
+      }
+
+      console.log('Query results:', results);
+
+      const orderDetails = results.map((row) => ({
+        orderId: row.OrderID,
+        status: row.OrderStatus,
+        shippingFee: row.ShippingFee || 0,
+        extraMoney: row.ExtraMoney || 0,
+        deliveryTime: row.ActualDeliveryTime,
+        deliveryAddress: row.DeliveryAddress,
+      }));
+
+      res.status(200).json({
+        success: true,
+        data: orderDetails,
+      });
+    });
+  } catch (error) {
+    console.error('Unexpected server error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getShipperAccount,
   cancelShipperAccount,
@@ -557,5 +668,6 @@ module.exports = {
   getWalletData,
   getTotalWallet,
   depositToWallet,
-  withdrawFromWallet 
+  withdrawFromWallet,
+  getOrderDetailsByDate,
 };

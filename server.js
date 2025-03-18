@@ -56,11 +56,11 @@ const {
     getCustomerOrderReports
 } = require("./controllers/ReportController");
 
-const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet } = require("./controllers/ShipperAccount");
-const {getIncidentById,getIncidentCategories,getIncidentTimeStats,getIncidentTypeStats,getIncidentShipperStats,getIncidents,getSummaryStats,getShippers_Incident,exportReport}=require('./controllers/IncidentOp');
+const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, 
+    getTotalWallet, depositToWallet, withdrawFromWallet , getOrderDetailsByDate } = require("./controllers/ShipperAccount");const app = express();
+    const {getIncidentById,getIncidentCategories,getIncidentTimeStats,getIncidentTypeStats,getIncidentShipperStats,getIncidents,getSummaryStats,getShippers_Incident,exportReport}=require('./controllers/IncidentOp');
 
-const app = express();
-// Notification
+    // Notification
 const { 
     getNotifications, 
     markAsRead, 
@@ -90,13 +90,12 @@ app.get("/api/shippers", getShippers);
 
 app.put("/api/shippers/:id/update", updateShipper);
 app.put("/api/shippers/:id/cancel", cancelShipperAccount);
-app.get("/api/shipper/:id/wallet", authenticateToken, getWalletData);
+app.get("/api/shipper/:id/raw-wallet", getWalletData);
 app.get('/api/shipper/:id/total-wallet', getTotalWallet);
 app.put("/api/shippers/:id", updateShipper);
 app.post('/api/shipper/:id/deposit', depositToWallet);
 app.post('/api/shipper/:id/withdraw', withdrawFromWallet);
-
-
+app.get('/api/shipper/:id/orders-by-date', getOrderDetailsByDate);
 
 app.get("/api/shippers-auth/:id", authenticateToken, getShipperAccount);
 app.post("/api/approve-shipper", approveShipper);
