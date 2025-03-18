@@ -95,7 +95,7 @@ app.put("/api/shippers/:id", updateShipper);
 app.post('/api/shipper/:id/deposit', depositToWallet);
 app.post('/api/shipper/:id/withdraw', withdrawFromWallet);
 app.get('/api/shipper/:id/orders-by-date', getOrderDetailsByDate);
-app.post('/api/shipper/:id/update-wallet', updateWalletBalance);
+// app.post('/api/shipper/:id/update-wallet', updateWalletBalance);
 
 app.get("/api/shippers-auth/:id", authenticateToken, getShipperAccount);
 app.post("/api/approve-shipper", approveShipper);
