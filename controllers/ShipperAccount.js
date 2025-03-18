@@ -660,38 +660,7 @@ const getOrderDetailsByDate = async (req, res) => {
     });
   }
 };
-// const updateWalletBalance = async (req, res) => {
-//   try {
-//     const shipperId = req.params.id;
-//     const { amount } = req.body;
 
-//     if (!shipperId || !amount || isNaN(amount) || amount <= 0) {
-//       return res.status(400).json({ success: false, message: 'ShipperID và số tiền hợp lệ là bắt buộc' });
-//     }
-
-//     const checkShipperQuery = `SELECT ShipperID FROM Shippers WHERE ShipperID = ?`;
-//     db.query(checkShipperQuery, [shipperId], (err, shipperResults) => {
-//       if (err) return res.status(500).json({ success: false, message: 'Lỗi khi kiểm tra shipper' });
-//       if (shipperResults.length === 0) return res.status(404).json({ success: false, message: 'Không tìm thấy shipper' });
-
-//       const updateWalletQuery = `UPDATE EWallet SET Balance = Balance + ? WHERE ShipperID = ?`;
-//       db.query(updateWalletQuery, [amount, shipperId], (err, result) => {
-//         if (err) return res.status(500).json({ success: false, message: 'Lỗi khi cập nhật ví' });
-//         if (result.affectedRows === 0) {
-//           return res.status(404).json({ success: false, message: 'Không tìm thấy ví của shipper' });
-//         }
-
-//         const getNewBalanceQuery = `SELECT Balance FROM EWallet WHERE ShipperID = ?`;
-//         db.query(getNewBalanceQuery, [shipperId], (err, balanceResults) => {
-//           if (err) return res.status(500).json({ success: false, message: 'Lỗi khi lấy số dư mới' });
-//           res.status(200).json({ success: true, data: { newBalance: Number(balanceResults[0].Balance) || 0 } });
-//         });
-//       });
-//     });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: 'Lỗi server' });
-//   }
-// };
 module.exports = {
   getShipperAccount,
   cancelShipperAccount,
@@ -701,5 +670,4 @@ module.exports = {
   depositToWallet,
   withdrawFromWallet,
   getOrderDetailsByDate,
-  // updateWalletBalance
 };
