@@ -195,7 +195,6 @@ const getHistoryDeliveryOrders = (req, res) => {
                                 OR c.Email LIKE '%${search}%')
                             ORDER BY EstimatedDeliveryTime
                             LIMIT ${limit} OFFSET ${offset}`;
-            console.log(sql);
 
                 db.query(sql, (err, results) => {
                     if (err) {
