@@ -93,7 +93,7 @@ app.get("/api/shippers", getShippers);
 app.put("/api/shippers/:id/update", updateShipper);
 app.put("/api/shippers/:id/cancel", cancelShipperAccount);
 app.get("/api/shipper/:id/raw-wallet", getWalletData);
-app.get('/api/shipper/:id/total-wallet', getTotalWallet);
+app.get("/api/shipper/:id/total-wallet", getTotalWallet);
 app.put("/api/shippers/:id", updateShipper);
 app.post('/api/shipper/:id/deposit', depositToWallet);
 app.post('/api/shipper/:id/withdraw', withdrawFromWallet);
@@ -227,7 +227,7 @@ app.get("/api/notifications", getNotifications); // Lấy danh sách thông báo
 app.put("/api/notifications/:id/read", markAsRead); // Đánh dấu thông báo đã đọc
 app.put("/api/notifications/mark-all-read", markAllNotificationsAsRead);
 // Chạy server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
