@@ -2,7 +2,7 @@ const db = require('../config/DBConnect');
 
 // API lấy tổng quan doanh thu
 const getRevenueOverview = (req, res) => {
-  const { timePeriod, region, serviceType, shipperCode } = req.query;
+  const { timePeriod, startDate, endDate, region, serviceType, shipperCode } = req.query;
 
   let query = `
     SELECT 
@@ -17,7 +17,12 @@ const getRevenueOverview = (req, res) => {
   const queryParams = [];
 
   // Thêm bộ lọc khoảng thời gian
-  if (timePeriod) {
+  if (timePeriod === 'custom' && startDate && endDate) {
+    // Lọc theo khoảng thời gian tùy chỉnh
+    query += ' AND r.RevenueDate BETWEEN ? AND ?';
+    queryParams.push(startDate, endDate);
+  } else if (timePeriod) {
+    // Các lọc cố định như cũ
     switch(timePeriod) {
       case 'day':
         query += ' AND r.RevenueDate = CURRENT_DATE';
@@ -62,7 +67,7 @@ const getRevenueOverview = (req, res) => {
 
 // API lấy doanh thu theo ngày
 const getRevenueByDay = (req, res) => {
-  const { timePeriod, region, serviceType, shipperCode } = req.query;
+  const { timePeriod, startDate, endDate, region, serviceType, shipperCode } = req.query;
 
   let query = `
     SELECT 
@@ -76,7 +81,12 @@ const getRevenueByDay = (req, res) => {
   const queryParams = [];
 
   // Thêm bộ lọc khoảng thời gian
-  if (timePeriod) {
+  if (timePeriod === 'custom' && startDate && endDate) {
+    // Lọc theo khoảng thời gian tùy chỉnh
+    query += ' AND r.RevenueDate BETWEEN ? AND ?';
+    queryParams.push(startDate, endDate);
+  } else if (timePeriod) {
+    // Các lọc cố định như cũ
     switch(timePeriod) {
       case 'day':
         query += ' AND r.RevenueDate = CURRENT_DATE';
@@ -198,7 +208,7 @@ const getRevenueByService = (req, res) => {
 
   let query = `
     SELECT 
-      o.ServiceType, 
+      LOWER(o.ServiceType) as serviceType, 
       SUM(r.TotalRevenue) as revenue
     FROM Revenue r
     JOIN Orders o ON r.OrderID = o.OrderID
@@ -238,7 +248,7 @@ const getRevenueByService = (req, res) => {
   }
 
   // Không lọc theo loại dịch vụ vì đây là báo cáo theo loại dịch vụ
-  query += ' GROUP BY o.ServiceType';
+  query += ' GROUP BY LOWER(o.ServiceType)';
 
   db.query(query, queryParams, (err, result) => {
     if (err) {
@@ -247,7 +257,8 @@ const getRevenueByService = (req, res) => {
     
     // Chuyển đổi kết quả để phù hợp với frontend
     const revenueByService = result.reduce((acc, item) => {
-      acc[item.ServiceType] = item.revenue;
+      // Ensure all service types are lowercase
+      acc[item.serviceType.toLowerCase()] = item.revenue;
       return acc;
     }, {});
 
@@ -268,14 +279,7 @@ const getOrders = (req, res) => {
   const { timePeriod, region, serviceType, shipperCode, page = 1, limit = 10 } = req.query;
   const offset = (page - 1) * limit;
 
-  let query = `
-    SELECT 
-      o.OrderID as id, 
-      o.OrderDate as date, 
-      o.ServiceType as type, 
-      o.RegionCode as region, 
-      o.DeliveryStatus as status,
-      r.TotalRevenue as revenue
+  let baseQuery = `
     FROM Orders o
     JOIN Revenue r ON o.OrderID = r.OrderID
     WHERE 1=1
@@ -287,53 +291,81 @@ const getOrders = (req, res) => {
   if (timePeriod) {
     switch(timePeriod) {
       case 'day':
-        query += ' AND o.OrderDate >= CURRENT_DATE';
+        baseQuery += ' AND o.OrderDate >= CURRENT_DATE';
         break;
       case 'week':
-        query += ' AND o.OrderDate >= DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY)';
+        baseQuery += ' AND o.OrderDate >= DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY)';
         break;
       case 'month':
-        query += ' AND YEAR(o.OrderDate) = YEAR(CURRENT_DATE) AND MONTH(o.OrderDate) = MONTH(CURRENT_DATE)';
+        baseQuery += ' AND YEAR(o.OrderDate) = YEAR(CURRENT_DATE) AND MONTH(o.OrderDate) = MONTH(CURRENT_DATE)';
         break;
       case 'year':
-        query += ' AND YEAR(o.OrderDate) = YEAR(CURRENT_DATE)';
+        baseQuery += ' AND YEAR(o.OrderDate) = YEAR(CURRENT_DATE)';
         break;
     }
   }
 
   // Thêm bộ lọc khu vực
   if (region && region !== 'all') {
-    query += ' AND o.RegionCode = ?';
+    baseQuery += ' AND o.RegionCode = ?';
     queryParams.push(region);
   }
 
   // Thêm bộ lọc loại dịch vụ
   if (serviceType && serviceType !== 'all') {
-    query += ' AND o.ServiceType = ?';
+    baseQuery += ' AND o.ServiceType = ?';
     queryParams.push(serviceType);
   }
 
   // Thêm bộ lọc mã shipper
   if (shipperCode) {
-    query += ' AND o.ShipperID = ?';
+    baseQuery += ' AND o.ShipperID = ?';
     queryParams.push(shipperCode);
   }
 
-  query += ' ORDER BY o.OrderDate DESC LIMIT ? OFFSET ?';
-  queryParams.push(parseInt(limit), parseInt(offset));
+  // Truy vấn để lấy tổng số bản ghi
+  const countQuery = `SELECT COUNT(*) as total ${baseQuery}`;
+  
+  // Truy vấn để lấy dữ liệu phân trang
+  const dataQuery = `
+    SELECT 
+      o.OrderID as id, 
+      o.OrderDate as date, 
+      o.ServiceType as type, 
+      o.RegionCode as region, 
+      o.DeliveryStatus as status,
+      r.TotalRevenue as revenue
+    ${baseQuery}
+    ORDER BY o.OrderDate DESC LIMIT ? OFFSET ?`;
+  
+  const paginationParams = [...queryParams, parseInt(limit), parseInt(offset)];
 
-  db.query(query, queryParams, (err, result) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
+  // Thực hiện truy vấn đếm tổng số bản ghi
+  db.query(countQuery, queryParams, (countErr, countResult) => {
+    if (countErr) {
+      return res.status(500).json({ error: countErr.message });
     }
 
-    // Định dạng kết quả để phù hợp với frontend
-    const formattedResults = result.map(order => ({
-      ...order,
-      date: order.date ? new Date(order.date).toLocaleDateString('vi-VN') : null
-    }));
+    const totalCount = countResult[0].total;
 
-    res.json(formattedResults);
+    // Thực hiện truy vấn lấy dữ liệu
+    db.query(dataQuery, paginationParams, (dataErr, dataResult) => {
+      if (dataErr) {
+        return res.status(500).json({ error: dataErr.message });
+      }
+
+      // Định dạng kết quả để phù hợp với frontend
+      const formattedResults = dataResult.map(order => ({
+        ...order,
+        date: order.date ? new Date(order.date).toLocaleDateString('vi-VN') : null
+      }));
+
+      // Trả về cả dữ liệu và tổng số bản ghi
+      res.json({
+        orders: formattedResults,
+        totalCount: totalCount
+      });
+    });
   });
 };
 
