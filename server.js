@@ -15,8 +15,9 @@ const {
     getCancelingShippers,
     searchUpdatingShippers,
     searchCancelingShippers,
-    getShipperUpdateDetails
-} = require("./controllers/Manageshipper");
+    getShipperUpdateDetails,
+    getShipperBalance
+} = require("./controllers/ManageShipper");
 
 const { loginShipper } = require("./controllers/Login");
 const { addShipper, checkPhoneExists, checkEmailExists, checkCitizenIDExists } = require('./controllers/ShipperRegister');
@@ -38,7 +39,8 @@ const {
     getMyDeliveryOrders,
     getHistoryDeliveryOrders,
     pickOrder, confirmDeliveryOrder,
-    getAllMyDeliveryOrders
+    getAllMyDeliveryOrders,
+    updateShippingFee
 } = require("./controllers/Order");
 const {
     getShipperDetails,
@@ -96,6 +98,8 @@ app.put("/api/shippers/:id", updateShipper);
 app.post('/api/shipper/:id/deposit', depositToWallet);
 app.post('/api/shipper/:id/withdraw', withdrawFromWallet);
 
+// Lấy số dư tài khoản shipper
+app.get("/api/getShipperBalance/:shipperID", authenticateToken, getShipperBalance);
 
 
 app.get("/api/shippers-auth/:id", authenticateToken, getShipperAccount);
@@ -184,6 +188,8 @@ app.get("/api/search-canceling-shippers", searchCancelingShippers);
 app.post("/api/change-shipper-status", changeShipperStatus);
 // API: Chi tiết cập nhật thông tin shipper
 app.get("/api/shipper-update-details/:id", getShipperUpdateDetails);
+// API: Chi tiết cập nhật phí ship
+app.put('/api/updateShippingFee', updateShippingFee);
 
 //API: Sự cố shipper
 app.post("/api/reports/order", createOrderReport);
