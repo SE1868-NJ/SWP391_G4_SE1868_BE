@@ -224,11 +224,9 @@ const getHistoryDeliveryOrders = (req, res) => {
 };
 
 const confirmDeliveryOrder = (req, res) => {
-  const { OrderID, Status, Deposit, FailureReason } = req.body;
+  const { OrderID, Status } = req.body;
 
-  console.log('Received confirm order data:', { OrderID, Status, Deposit, FailureReason });
-
-  db.beginTransaction((transactionError) => {
+  db.beginTransaction(async (transactionError) => {
     if (transactionError) {
       return res.status(500).json({ 
         message: "Lỗi khởi tạo giao dịch",
@@ -236,142 +234,76 @@ const confirmDeliveryOrder = (req, res) => {
       });
     }
 
-    const orderQuery = `
-      SELECT o.*, e.Balance as CurrentBalance 
-      FROM swp_shipper.orders o
-      JOIN swp_shipper.EWallet e ON o.ShipperID = e.ShipperID
-      WHERE o.OrderID = ?
-    `;
-
-    db.query(orderQuery, [OrderID], (orderErr, orderResults) => {
-      if (orderErr) {
-        return db.rollback(() => {
-          return res.status(500).json({ 
-            message: "Lỗi truy vấn đơn hàng",
-            error: orderErr.message 
-          });
-        });
-      }
+    try {
+      // Lấy thông tin đơn hàng chi tiết
+      const [orderResults] = await db.promise().query(
+        'SELECT * FROM swp_shipper.orders WHERE OrderID = ?', 
+        [OrderID]
+      );
 
       if (orderResults.length === 0) {
-        return db.rollback(() => {
-          return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+        return res.status(404).json({ 
+          message: "Không tìm thấy đơn hàng",
+          orderId: OrderID 
         });
       }
 
       const order = orderResults[0];
-      const shipperId = order.ShipperID;
-      const deposit = Number(order.Deposit || 0);
-      const shippingFee = Number(order.ShippingFee || 0);
-      const currentBalance = Number(order.CurrentBalance || 0);
-
-      console.log('Order Details:', { shipperId, deposit, shippingFee, currentBalance });
+      const { ShipperID, Deposit, ShippingFee } = order;
 
       const updateOrderQuery = `
         UPDATE swp_shipper.orders
-        SET OrderStatus = ?, ActualDeliveryTime = CURRENT_TIMESTAMP, FailureReason = ?
+        SET OrderStatus = ?, 
+            ActualDeliveryTime = CURRENT_TIMESTAMP
         WHERE OrderID = ?
       `;
 
-      db.query(updateOrderQuery, [Status, FailureReason || null, OrderID], (updateErr) => {
-        if (updateErr) {
-          return db.rollback(() => {
-            return res.status(500).json({ 
-              message: "Lỗi cập nhật trạng thái đơn hàng",
-              error: updateErr.message 
-            });
-          });
-        }
+      const [updateResult] = await db.promise().query(updateOrderQuery, [Status, OrderID]);
 
-        if (Status === 'Delivered') {
-          const updateWalletQuery = `
-            UPDATE swp_shipper.EWallet
-            SET Balance = Balance + ?
-            WHERE ShipperID = ?
-          `;
-          const totalAmount = deposit + shippingFee;
+      if (updateResult.affectedRows === 0) {
+        return res.status(404).json({ 
+          message: "Không tìm thấy đơn hàng",
+          orderId: OrderID 
+        });
+      }
 
-          db.query(updateWalletQuery, [totalAmount, shipperId], (walletUpdateErr) => {
-            if (walletUpdateErr) {
-              return db.rollback(() => {
-                return res.status(500).json({ 
-                  message: "Lỗi cập nhật ví",
-                  error: walletUpdateErr.message 
-                });
-              });
-            }
+      if (Status === 'Delivered') {
+        // Cập nhật ví và hoàn tiền cọc
+        const updateWalletQuery = `
+          UPDATE swp_shipper.EWallet
+          SET Balance = Balance + ?
+          WHERE ShipperID = ?
+        `;
 
-            db.commit((commitErr) => {
-              if (commitErr) {
-                return db.rollback(() => {
-                  return res.status(500).json({ 
-                    message: "Lỗi hoàn tất giao dịch",
-                    error: commitErr.message 
-                  });
-                });
-              }
-              return res.status(200).json({ 
-                message: "Xác nhận đơn hàng thành công",
-                deposit,
-                shippingFee,
-                totalAdded: totalAmount
-              });
-            });
-          });
-        } else if (Status === 'Cancelled') {
-          if (FailureReason === 'shipper_error') {
-            db.commit((commitErr) => {
-              if (commitErr) {
-                return db.rollback(() => {
-                  return res.status(500).json({ 
-                    message: "Lỗi hoàn tất giao dịch",
-                    error: commitErr.message 
-                  });
-                });
-              }
-              return res.status(200).json({ 
-                message: "Xác nhận đơn hàng thất bại do shipper",
-                deposit: 0,
-                shippingFee: 0
-              });
-            });
-          } else {
-            const updateWalletQuery = `
-              UPDATE swp_shipper.EWallet
-              SET Balance = Balance + ?
-              WHERE ShipperID = ?
-            `;
+        const totalAmount = Number(Deposit || 0) + Number(ShippingFee || 0);
 
-            db.query(updateWalletQuery, [deposit, shipperId], (walletUpdateErr) => {
-              if (walletUpdateErr) {
-                return db.rollback(() => {
-                  return res.status(500).json({ 
-                    message: "Lỗi cập nhật ví",
-                    error: walletUpdateErr.message 
-                  });
-                });
-              }
+        const [walletUpdateResult] = await db.promise().query(updateWalletQuery, [totalAmount, ShipperID]);
 
-              db.commit((commitErr) => {
-                if (commitErr) {
-                  return db.rollback(() => {
-                    return res.status(500).json({ 
-                      message: "Lỗi hoàn tất giao dịch",
-                      error: commitErr.message 
-                    });
-                  });
-                }
-                return res.status(200).json({ 
-                  message: "Xác nhận đơn hàng thất bại do khách hàng",
-                  deposit,
-                  shippingFee: 0
-                });
-              });
-            });
-          }
-        }
+        // Tạo thông báo
+        await createOrderNotification(ShipperID, OrderID, Status);
+
+        return res.status(200).json({ 
+          message: "Xác nhận đơn hàng thành công",
+          deposit: Deposit,
+          shippingFee: ShippingFee,
+          totalAdded: totalAmount
+        });
+      } else if (Status === 'Cancelled') {
+        // Tạo thông báo cho trạng thái bị hủy
+        await createOrderNotification(ShipperID, OrderID, Status);
+
+        return res.status(200).json({ 
+          message: "Đơn hàng đã bị hủy",
+          orderId: OrderID
+        });
+      }
+    } catch (error) {
+      console.error('Lỗi xử lý đơn hàng:', error);
+      return res.status(500).json({ 
+        message: "Lỗi xử lý đơn hàng",
+        error: error.message 
       });
-    });
+    }
   });
 };
 
