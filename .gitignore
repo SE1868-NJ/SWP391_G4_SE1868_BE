@@ -39,4 +39,4 @@ yarn-error.log*
 ehthumbs.db
 Thumbs.db
 
-DBConnect.js
+.DBConnect.js

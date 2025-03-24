@@ -340,4 +340,60 @@ const getShipperUpdateDetails = (req, res) => {
     res.json(results[0]);
   });
 };
-module.exports = { getShippers, getPendingRegisterShippers, searchApprovedShippers, searchPendingShippers, getUpdatingShippers, getCancelingShippers, searchUpdatingShippers, searchCancelingShippers, changeShipperStatus, getShipperUpdateDetails };
+
+// Controller
+const getShipperBalance = (req, res) => {
+  const ShipperID = req.params.shipperID;
+
+  console.log('Received ShipperID:', ShipperID); // Log để kiểm tra ID nhận được
+
+  if (!ShipperID) {
+      return res.status(400).json({ message: "Thiếu ID Shipper" });
+  }
+
+  const balanceQuery = `
+      SELECT COALESCE(Balance, 0) as balance
+      FROM EWallet 
+      WHERE ShipperID = ?
+  `;
+
+  // Sử dụng promise để bắt lỗi chi tiết hơn
+  db.query(balanceQuery, [ShipperID], (error, results) => {
+      if (error) {
+          console.error("Detailed error fetching shipper balance:", {
+              message: error.message,
+              stack: error.stack,
+              sqlMessage: error.sqlMessage
+          });
+
+          return res.status(500).json({ 
+              message: "Lỗi khi truy xuất số dư",
+              errorDetails: error.message 
+          });
+      }
+
+      console.log('Query Results:', results); // Log kết quả truy vấn
+
+      if (results.length === 0) {
+          return res.status(200).json({
+              message: "Không tìm thấy ví",
+              balance: 0,
+              data: {
+                  balance: 0
+              }
+          });
+      }
+
+      const balance = results[0].balance;
+
+      return res.status(200).json({
+          message: "Lấy số dư thành công",
+          balance: balance,
+          data: {
+              balance: balance
+          }
+      });
+  });
+};
+
+module.exports = { getShippers, getPendingRegisterShippers, searchApprovedShippers, searchPendingShippers, getUpdatingShippers, getCancelingShippers, searchUpdatingShippers, searchCancelingShippers, changeShipperStatus, getShipperUpdateDetails, getShipperBalance };
