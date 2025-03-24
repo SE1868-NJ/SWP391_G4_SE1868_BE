@@ -397,3 +397,6 @@ const getShipperBalance = (req, res) => {
 };
 
 module.exports = { getShippers, getPendingRegisterShippers, searchApprovedShippers, searchPendingShippers, getUpdatingShippers, getCancelingShippers, searchUpdatingShippers, searchCancelingShippers, changeShipperStatus, getShipperUpdateDetails, getShipperBalance };
+
+
+//
