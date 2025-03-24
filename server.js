@@ -57,7 +57,16 @@ const {
 } = require("./controllers/ReportController");
 
 const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet } = require("./controllers/ShipperAccount");
-const {getIncidentById,getIncidentCategories,getIncidentTimeStats,getIncidentTypeStats,getIncidentShipperStats,getIncidents,getSummaryStats,getShippers_Incident,exportReport}=require('./controllers/IncidentOp');
+const {getIncidentById,
+    getIncidentCategories,
+    getIncidentTimeStats,
+    getIncidentTypeStats,
+    getIncidentShipperStats,
+    getIncidents,
+    getSummaryStats,
+    getShippers_Incident,
+    exportReportExcel,
+    exportReportPdf}=require('./controllers/IncidentOp');
 
 const app = express();
 // Notification
@@ -210,7 +219,9 @@ app.get("/api/incidents/shippers",getShippers_Incident);
 //Get incident by id
 app.get("/api/incidents/:id",getIncidentById);
 //Export report
-app.get("/api/export-report",exportReport);
+app.post("/api/export-report/xlsx",exportReportExcel);
+//Export report
+app.post("/api/export-report/pdf",exportReportPdf);
 
 // API: AI
 app.use('/api', chatRoutes);
