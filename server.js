@@ -15,7 +15,12 @@ const {
     getCancelingShippers,
     searchUpdatingShippers,
     searchCancelingShippers,
+<<<<<<< HEAD
     getShipperUpdateDetails
+=======
+    getShipperUpdateDetails,
+    getShipperBalance
+>>>>>>> 2ae69c51fd7352e33d617b16f807aeb1e333ffc6
 } = require("./controllers/ManageShipper");
 
 const { loginShipper } = require("./controllers/Login");
@@ -38,7 +43,8 @@ const {
     getMyDeliveryOrders,
     getHistoryDeliveryOrders,
     pickOrder, confirmDeliveryOrder,
-    getAllMyDeliveryOrders
+    getAllMyDeliveryOrders,
+    updateShippingFee
 } = require("./controllers/Order");
 const {
     getShipperDetails,
@@ -56,7 +62,11 @@ const {
     getCustomerOrderReports
 } = require("./controllers/ReportController");
 
+<<<<<<< HEAD
 const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet, getOrderDetailsByDate } = require("./controllers/ShipperAccount");
+=======
+const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet,getOrderDetailsByDate,getTransactionHistory } = require("./controllers/ShipperAccount");
+>>>>>>> 2ae69c51fd7352e33d617b16f807aeb1e333ffc6
 const {getIncidentById,getIncidentCategories,getIncidentTimeStats,getIncidentTypeStats,getIncidentShipperStats,getIncidents,getSummaryStats,getShippers_Incident,exportReport}=require('./controllers/IncidentOp');
 
 const app = express();
@@ -99,11 +109,16 @@ app.get("/api/shippers", getShippers);
 app.put("/api/shippers/:id/update", updateShipper);
 app.put("/api/shippers/:id/cancel", cancelShipperAccount);
 app.get("/api/shipper/:id/raw-wallet", getWalletData);
-app.get('/api/shipper/:id/total-wallet', getTotalWallet);
+app.get("/api/shipper/:id/total-wallet", getTotalWallet);
 app.put("/api/shippers/:id", updateShipper);
 app.post('/api/shipper/:id/deposit', depositToWallet);
 app.post('/api/shipper/:id/withdraw', withdrawFromWallet);
+
+// Lấy số dư tài khoản shipper
+app.get("/api/getShipperBalance/:shipperID", authenticateToken, getShipperBalance);
 app.get('/api/shipper/:id/orders-by-date', getOrderDetailsByDate);
+app.get("/api/shipper/:id/transaction-history", getTransactionHistory);
+
 
 app.get("/api/shippers-auth/:id", authenticateToken, getShipperAccount);
 app.post("/api/approve-shipper", approveShipper);
@@ -191,6 +206,8 @@ app.get("/api/search-canceling-shippers", searchCancelingShippers);
 app.post("/api/change-shipper-status", changeShipperStatus);
 // API: Chi tiết cập nhật thông tin shipper
 app.get("/api/shipper-update-details/:id", getShipperUpdateDetails);
+// API: Chi tiết cập nhật phí ship
+app.put('/api/updateShippingFee', updateShippingFee);
 
 //API: Sự cố shipper
 app.post("/api/reports/order", createOrderReport);
