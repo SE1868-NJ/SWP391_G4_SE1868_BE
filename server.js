@@ -17,11 +17,7 @@ const {
     searchCancelingShippers,
     getShipperUpdateDetails,
     getShipperBalance
-<<<<<<< HEAD
 } = require("./controllers/Manageshipper");
-=======
-} = require("./controllers/ManageShipper");
->>>>>>> dev
 
 const { loginShipper } = require("./controllers/Login");
 const { addShipper, checkPhoneExists, checkEmailExists, checkCitizenIDExists } = require('./controllers/ShipperRegister');
@@ -62,7 +58,6 @@ const {
     getCustomerOrderReports
 } = require("./controllers/ReportController");
 
-<<<<<<< HEAD
 const {getIncidentById,
     getIncidentCategories,
     getIncidentTimeStats,
@@ -74,10 +69,6 @@ const {getIncidentById,
     exportReportExcel,
     exportReportPdf}=require('./controllers/IncidentOp');
 const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet,getOrderDetailsByDate,getTransactionHistory } = require("./controllers/ShipperAccount");
-=======
-const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet,getOrderDetailsByDate,getTransactionHistory } = require("./controllers/ShipperAccount");
-const {getIncidentById,getIncidentCategories,getIncidentTimeStats,getIncidentTypeStats,getIncidentShipperStats,getIncidents,getSummaryStats,getShippers_Incident,exportReport}=require('./controllers/IncidentOp');
->>>>>>> dev
 
 const app = express();
 // Notification
