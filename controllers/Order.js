@@ -168,43 +168,6 @@ const getHistoryDeliveryOrders = (req, res) => {
         AND (c.FullName LIKE ? OR c.PhoneNumber LIKE ? OR c.Email LIKE ?)
       `;
 
-<<<<<<< HEAD
-            if(status !== "All"){
-                countQuery += ` ( o.OrderStatus = "${status}" )`
-            }else {
-                countQuery += ` ( o.OrderStatus = "Cancelled" or o.OrderStatus = "Delivered" ) `
-            }
-             
-            countQuery +=` And ( o.ShipperID = ${shipperID})
-                                And ( c.Fullname LIKE '%${search}%'
-                                OR c.PhoneNumber LIKE '%${search}%'
-                                OR c.Email LIKE '%${search}%')
-            `;
-            db.query(countQuery, (err, countResults) => {
-                if (err) {
-                    return res.status(500).send(err.message);
-                }
-                
-                const totalRows = countResults[0].totalRows;
-                const totalPages = Math.ceil(totalRows / limit);
-                
-                let sql = `SELECT * 
-                            FROM swp_shipper.orders o 
-                            JOIN swp_shipper.customers c 
-                            ON o.CustomerID = c.CustomerID
-                            WHERE`;
-                              if(status !== "All"){
-                                sql += ` ( o.OrderStatus = "${status}" )`
-                            }else {
-                                sql += ` ( o.OrderStatus = "Cancelled" or o.OrderStatus = "Delivered" )`
-                            }
-                            sql +=  ` And ( o.ShipperID = ${shipperID})
-                                And  ( c.Fullname LIKE '%${search}%'
-                                OR c.PhoneNumber LIKE '%${search}%'
-                                OR c.Email LIKE '%${search}%')
-                            ORDER BY EstimatedDeliveryTime
-                            LIMIT ${limit} OFFSET ${offset}`;
-=======
       if (status !== "All") {
         countQuery += ` AND o.OrderStatus = ?`;
         sql += ` AND o.OrderStatus = ?`;
@@ -212,7 +175,6 @@ const getHistoryDeliveryOrders = (req, res) => {
         countQuery += ` AND o.OrderStatus IN ("Cancelled", "Delivered")`;
         sql += ` AND o.OrderStatus IN ("Cancelled", "Delivered")`;
       }
->>>>>>> 2ae69c51fd7352e33d617b16f807aeb1e333ffc6
 
       countQuery += ` ORDER BY o.EstimatedDeliveryTime`;
       sql += ` ORDER BY o.EstimatedDeliveryTime LIMIT ? OFFSET ?`;

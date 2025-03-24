@@ -15,12 +15,8 @@ const {
     getCancelingShippers,
     searchUpdatingShippers,
     searchCancelingShippers,
-<<<<<<< HEAD
-    getShipperUpdateDetails
-=======
     getShipperUpdateDetails,
     getShipperBalance
->>>>>>> 2ae69c51fd7352e33d617b16f807aeb1e333ffc6
 } = require("./controllers/ManageShipper");
 
 const { loginShipper } = require("./controllers/Login");
@@ -62,29 +58,17 @@ const {
     getCustomerOrderReports
 } = require("./controllers/ReportController");
 
-<<<<<<< HEAD
-const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet, getOrderDetailsByDate } = require("./controllers/ShipperAccount");
-=======
 const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet,getOrderDetailsByDate,getTransactionHistory } = require("./controllers/ShipperAccount");
->>>>>>> 2ae69c51fd7352e33d617b16f807aeb1e333ffc6
 const {getIncidentById,getIncidentCategories,getIncidentTimeStats,getIncidentTypeStats,getIncidentShipperStats,getIncidents,getSummaryStats,getShippers_Incident,exportReport}=require('./controllers/IncidentOp');
 
 const app = express();
 // Notification
 const { 
     getNotifications, 
-    markAsRead: markNotificationAsRead, 
+    markAsRead, 
     createOrderNotification,
     markAllNotificationsAsRead 
 } = require("./controllers/NotificationController");
-// Notifications Admin
-const {
-    getAdminNotifications,
-    createAdminNotification,
-    markAsRead: markAdminNotificationAsRead,
-    markAllAsRead,
-    deleteAdminNotification,
-  } = require("./controllers/AdminNotificationController");
 // Enhanced CORS configuration
 app.use(cors({
     origin: "http://localhost:3000",
@@ -240,15 +224,8 @@ app.get("/api/export-report",exportReport);
 app.use('/api', chatRoutes);
 //notifications
 app.get("/api/notifications", getNotifications); // Lấy danh sách thông báo
-app.put("/api/notifications/:id/read", markNotificationAsRead); // Đánh dấu thông báo đã đọc
+app.put("/api/notifications/:id/read", markAsRead); // Đánh dấu thông báo đã đọc
 app.put("/api/notifications/mark-all-read", markAllNotificationsAsRead);
-//notifications admin
-app.get("/api/admin-notifications", getAdminNotifications); // Lấy danh sách thông báo
-app.post("/api/admin-notifications", createAdminNotification); // Tạo thông báo mới
-app.put("/api/admin-notifications/:id/read", markAdminNotificationAsRead); // Đánh dấu một thông báo là đã đọc
-app.put("/api/admin-notifications/mark-all-read", markAllAsRead); // Đánh dấu tất cả là đã đọc
-app.delete("/api/admin-notifications/:id", deleteAdminNotification); // Xóa thông báo (tùy chọn)
-
 // Chạy server
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
