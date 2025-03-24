@@ -1,6 +1,10 @@
 const db = require('../config/DBConnect');
 const { validationResult } = require('express-validator');
 const { getShippers } = require('./Manageshipper');
+const ExcelJS = require('exceljs');
+const pdfMake = require('pdfmake');
+const fs = require('fs');
+const path = require('path');
 
 // ======= API lấy danh sách sự cố =======
 const getIncidents = async (req, res) => {
@@ -131,52 +135,6 @@ const getIncidentById = async (req, res) => {
   }
 };
 
-// ======= API cập nhật trạng thái sự cố =======
-const updateIncidentStatus = async (req, res) => {
-  try {
-    // Validate input
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-    
-    const { status } = req.body;
-    const incidentId = req.params.id;
-    
-    // Map UI status to database status
-    let dbStatus;
-    switch(status) {
-      case 'Chưa xử lý':
-        dbStatus = 'Pending';
-        break;
-      case 'Đang xử lý':
-        dbStatus = 'In Progress';
-        break;
-      case 'Đã xử lý':
-        dbStatus = 'Resolved';
-        break;
-      case 'Từ chối':
-        dbStatus = 'Rejected';
-        break;
-    }
-    
-    // Set resolution date if status is 'Resolved'
-    const updateQuery = dbStatus === 'Resolved' 
-      ? `UPDATE incidentreports SET Status = ?, AdminResolutionDate = CURRENT_TIMESTAMP WHERE ReportID = ?`
-      : `UPDATE incidentreports SET Status = ? WHERE ReportID = ?`;
-    
-    const [result] = await db.promise().query(updateQuery, [dbStatus, incidentId]);
-    
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'Không tìm thấy sự cố' });
-    }
-    
-    res.json({ message: 'Cập nhật trạng thái thành công' });
-  } catch (error) {
-    console.error('Error updating incident status:', error);
-    res.status(500).json({ error: 'Đã xảy ra lỗi khi cập nhật trạng thái sự cố' });
-  }
-};
 
 // ======= API lấy số liệu thống kê tổng quan =======
 const getSummaryStats = async (req, res) => {
@@ -287,148 +245,223 @@ const getIncidentShipperStats = async (req, res) => {
 };
 
 // ======= API xuất báo cáo =======
-const exportReport = async (req, res) => {
+const exportReportExcel = async (req, res) => {
   try {
-    const format = req.query.format || 'json'; // Mặc định là json nếu không có format được chỉ định
+    const { incidents, summaryStats, typeStats, timeStats, exportDate, exportedBy } = req.body;
     
-    // Lấy dữ liệu cho báo cáo
-    const [incidents] = await db.promise().query(`
-      SELECT 
-        i.ReportID as id,
-        s.FullName as shipperName,
-        i.IncidentCategory as incidentType,
-        CASE 
-          WHEN i.Status = 'Pending' THEN 'Chưa xử lý'
-          WHEN i.Status = 'In Progress' THEN 'Đang xử lý'
-          WHEN i.Status = 'Resolved' THEN 'Đã xử lý'
-          WHEN i.Status = 'Rejected' THEN 'Từ chối'
-        END as status,
-        DATE_FORMAT(i.ReportDate, '%Y-%m-%d') as reportDate,
-        i.ReportedBy as reportedBy,
-        i.Severity as severity,
-        DATE_FORMAT(i.AdminResolutionDate, '%Y-%m-%d') as resolutionDate,
-        i.Description as description,
-        TIMESTAMPDIFF(HOUR, i.ReportDate, IFNULL(i.AdminResolutionDate, NOW())) / 24 as durationDays
-      FROM incidentreports i
-      JOIN shippers s ON i.ShipperID = s.ShipperID
-      ORDER BY i.ReportDate DESC
-    `);
+    // Tạo workbook mới
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = exportedBy;
+    workbook.created = new Date(exportDate);
     
-    // Xử lý format dựa trên yêu cầu (trong thực tế bạn sẽ cần thêm các thư viện để xuất Excel/PDF)
-    if (format === 'excel') {
-      // Placeholder cho logic xuất Excel - thực tế sẽ sử dụng thư viện như exceljs
-      res.setHeader('Content-Type', 'application/json');
-      res.json({ 
-        message: 'Tính năng xuất Excel sẽ được triển khai khi tích hợp thư viện',
-        data: incidents 
-      });
-    } else if (format === 'pdf') {
-      // Placeholder cho logic xuất PDF - thực tế sẽ sử dụng thư viện như PDFKit
-      res.setHeader('Content-Type', 'application/json');
-      res.json({ 
-        message: 'Tính năng xuất PDF sẽ được triển khai khi tích hợp thư viện',
-        data: incidents 
-      });
-    } else {
-      // Mặc định trả về JSON
-      res.json(incidents);
-    }
-  } catch (error) {
-    console.error('Error exporting incidents:', error);
-    res.status(500).json({ error: 'Đã xảy ra lỗi khi xuất báo cáo' });
-  }
-};
-
-// ======= API tạo báo cáo sự cố mới =======
-const createIncident = async (req, res) => {
-  try {
-    // Validate input
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+    // Tạo worksheet cho danh sách sự cố
+    const incidentsSheet = workbook.addWorksheet('Danh sách sự cố');
     
-    const { 
-      shipperID, 
-      orderID, 
-      incidentType, 
-      incidentCategory, 
-      description, 
-      reportedBy, 
-      severity 
-    } = req.body;
+    // Định dạng tiêu đề
+    incidentsSheet.columns = [
+      { header: 'ID', key: 'id', width: 10 },
+      { header: 'Shipper', key: 'shipper', width: 20 },
+      { header: 'Loại sự cố', key: 'type', width: 20 },
+      { header: 'Trạng thái', key: 'status', width: 15 },
+      { header: 'Ngày báo cáo', key: 'date', width: 20 },
+      { header: 'Người báo cáo', key: 'reportedBy', width: 20 },
+      { header: 'Mức độ', key: 'severity', width: 15 }
+    ];
     
-    // Insert new incident
-    const [result] = await db.promise().query(
-      `INSERT INTO incidentreports 
-        (ShipperID, OrderID, IncidentType, IncidentCategory, Description, ReportedBy, Severity, Status) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending')`,
-      [shipperID, orderID || null, incidentType, incidentCategory, description, reportedBy, severity]
-    );
+    // Thêm dữ liệu
+    incidentsSheet.addRows(incidents);
     
-    res.status(201).json({ 
-      message: 'Tạo báo cáo sự cố thành công', 
-      incidentID: result.insertId 
+    // Định dạng tiêu đề
+    incidentsSheet.getRow(1).font = { bold: true };
+    incidentsSheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD3D3D3' }
+    };
+    
+    // Worksheet thống kê
+    const statsSheet = workbook.addWorksheet('Thống kê');
+    
+    // Thêm dữ liệu tổng quan
+    statsSheet.addRow(['BÁO CÁO TỔNG QUAN SỰ CỐ']);
+    statsSheet.addRow(['Ngày xuất báo cáo:', new Date(exportDate).toLocaleDateString('vi-VN')]);
+    statsSheet.addRow(['Người xuất báo cáo:', exportedBy]);
+    statsSheet.addRow([]);
+    
+    statsSheet.addRow(['CHỈ SỐ TỔNG QUAN']);
+    statsSheet.addRow(['Tổng số sự cố:', summaryStats.totalIncidents]);
+    statsSheet.addRow(['Đang xử lý:', summaryStats.inProgressCount]);
+    statsSheet.addRow(['Đã xử lý:', summaryStats.resolvedCount]);
+    statsSheet.addRow(['Tỷ lệ xử lý thành công:', `${summaryStats.successRate}%`]);
+    statsSheet.addRow(['Thời gian xử lý trung bình:', `${summaryStats.avgResolutionDays} ngày`]);
+    statsSheet.addRow(['Sự cố nghiêm trọng:', summaryStats.severeCases]);
+    statsSheet.addRow(['Shipper có nhiều sự cố:', summaryStats.topShipper]);
+    statsSheet.addRow([]);
+    
+    // Thống kê theo loại sự cố
+    statsSheet.addRow(['THỐNG KÊ THEO LOẠI SỰ CỐ']);
+    statsSheet.addRow(['Loại sự cố', 'Số lượng']);
+    typeStats.forEach(item => {
+      statsSheet.addRow([item.name, item.value]);
     });
+    statsSheet.addRow([]);
+    
+    // Định dạng tiêu đề và phần thống kê
+    statsSheet.getCell('A1').font = { bold: true, size: 16 };
+    statsSheet.getCell('A5').font = { bold: true, size: 14 };
+    statsSheet.getCell('A14').font = { bold: true, size: 14 };
+    statsSheet.getRow(15).font = { bold: true };
+    
+    // Viết file và trả về
+    const buffer = await workbook.xlsx.writeBuffer();
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=bao-cao-su-co.xlsx');
+    res.send(buffer);
   } catch (error) {
-    console.error('Error creating incident:', error);
-    res.status(500).json({ error: 'Đã xảy ra lỗi khi tạo báo cáo sự cố' });
+    console.error('Error generating Excel:', error);
+    res.status(500).send({ error: 'Không thể tạo file Excel' });
   }
 };
 
-// ======= API cập nhật thông tin sự cố =======
-const updateIncident = async (req, res) => {
+const exportReportPdf = async (req, res) => {
   try {
-    // Validate input
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+    const { incidents, summaryStats, typeStats, timeStats, exportDate, exportedBy } = req.body;
     
-    const incidentId = req.params.id;
-    const { description, severity, incidentCategory } = req.body;
+    // Định nghĩa phông chữ
+    const fonts = {
+      Roboto: {
+        normal: path.resolve(__dirname, '../controllers/fonts/Roboto-Regular.ttf'),
+        bold: path.resolve(__dirname, '../controllers/fonts/Roboto-Bold.ttf'),
+        italics: path.resolve(__dirname, '../controllers/fonts/Roboto-Italic.ttf'),
+        bolditalics: path.resolve(__dirname, '../controllers/fonts/Roboto-BoldItalic.ttf')
+      }
+    };
     
-    // Xây dựng SQL update động dựa trên các trường được cung cấp
-    let updateFields = [];
-    let queryParams = [];
+    // Tạo printer
+    const printer = new pdfMake(fonts);
     
-    if (description) {
-      updateFields.push('Description = ?');
-      queryParams.push(description);
-    }
+    // Dữ liệu thống kê
+    const statsTableData = [
+      ['Chỉ số', 'Giá trị'],
+      ['Tổng số sự cố', summaryStats.totalIncidents],
+      ['Đang xử lý', summaryStats.inProgressCount],
+      ['Đã xử lý', summaryStats.resolvedCount],
+      ['Tỷ lệ xử lý thành công', `${summaryStats.successRate}%`],
+      ['Thời gian xử lý trung bình', `${summaryStats.avgResolutionDays} ngày`],
+      ['Sự cố nghiêm trọng', summaryStats.severeCases],
+      ['Shipper có nhiều sự cố', summaryStats.topShipper]
+    ];
     
-    if (severity) {
-      updateFields.push('Severity = ?');
-      queryParams.push(severity);
-    }
+    // Dữ liệu sự cố
+    const incidentTableData = [
+      ['ID', 'Shipper', 'Loại sự cố', 'Trạng thái', 'Ngày báo cáo', 'Mức độ']
+    ];
     
-    if (incidentCategory) {
-      updateFields.push('IncidentCategory = ?');
-      queryParams.push(incidentCategory);
-    }
+    // Lấy 10 sự cố đầu tiên
+    const top10Incidents = incidents.slice(0, 10);
     
-    if (updateFields.length === 0) {
-      return res.status(400).json({ error: 'Không có thông tin nào được cập nhật' });
-    }
+    top10Incidents.forEach(incident => {
+      incidentTableData.push([
+        incident.id.toString(),
+        incident.shipper,
+        incident.type,
+        incident.status,
+        incident.date,
+        incident.severity
+      ]);
+    });
     
-    // Thêm ID vào cuối params
-    queryParams.push(incidentId);
+    // Dữ liệu thống kê theo loại
+    const typeTableData = [
+      ['Loại sự cố', 'Số lượng']
+    ];
     
-    const [result] = await db.promise().query(
-      `UPDATE incidentreports SET ${updateFields.join(', ')} WHERE ReportID = ?`,
-      queryParams
-    );
+    typeStats.forEach(item => {
+      typeTableData.push([item.name, item.value.toString()]);
+    });
     
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'Không tìm thấy sự cố' });
-    }
+    // Định nghĩa document
+    const docDefinition = {
+      content: [
+        { text: 'BÁO CÁO SỰ CỐ', style: 'header' },
+        
+        { text: `Ngày xuất báo cáo: ${new Date(exportDate).toLocaleDateString('vi-VN')}`, margin: [0, 10, 0, 0] },
+        { text: `Người xuất báo cáo: ${exportedBy}`, margin: [0, 5, 0, 10] },
+        
+        { text: 'Thống kê tổng quan', style: 'subheader' },
+        {
+          table: {
+            body: statsTableData,
+            widths: ['*', 100]
+          },
+          margin: [0, 5, 0, 15]
+        },
+        
+        { text: 'Danh sách sự cố (Top 10)', style: 'subheader', pageBreak: 'before' },
+        {
+          table: {
+            headerRows: 1,
+            body: incidentTableData,
+            widths: [30, 60, 80, 60, 80, 50]
+          },
+          margin: [0, 5, 0, 15]
+        },
+        
+        { text: 'Thống kê theo loại sự cố', style: 'subheader', pageBreak: 'before' },
+        {
+          table: {
+            headerRows: 1,
+            body: typeTableData,
+            widths: ['*', 100]
+          },
+          margin: [0, 5, 0, 0]
+        }
+      ],
+      styles: {
+        header: {
+          fontSize: 20,
+          bold: true,
+          alignment: 'center',
+          margin: [0, 0, 0, 10]
+        },
+        subheader: {
+          fontSize: 16,
+          bold: true,
+          margin: [0, 10, 0, 5]
+        }
+      },
+      defaultStyle: {
+        font: 'Roboto'
+      }
+    };
     
-    res.json({ message: 'Cập nhật thông tin sự cố thành công' });
+    // Tạo PDF
+    const pdfDoc = printer.createPdfKitDocument(docDefinition);
+    
+    // Set headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=bao-cao-su-co.pdf');
+    
+    // Pipe PDF thẳng đến response
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+    
   } catch (error) {
-    console.error('Error updating incident:', error);
-    res.status(500).json({ error: 'Đã xảy ra lỗi khi cập nhật thông tin sự cố' });
+    console.error('Error generating PDF:', error);
+    res.status(500).send({ error: 'Không thể tạo file PDF' });
   }
 };
+// Hàm loại bỏ dấu tiếng Việt
+function removeVietnameseAccents(str) {
+  if (!str) return '';
+  
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D');
+}
 
 // ======= API lấy danh sách shipper =======
 const getShippers_Incident = async (req, res) => {
@@ -476,14 +509,12 @@ const getIncidentCategories = async (req, res) => {
 module.exports = {
   getIncidents,
   getIncidentById,
-  updateIncidentStatus,
   getSummaryStats,
   getIncidentTypeStats,
   getIncidentTimeStats,
   getIncidentShipperStats,
-  exportReport,
-  createIncident,
-  updateIncident,
+  exportReportExcel,
+  exportReportPdf,
   getShippers_Incident,
   getIncidentCategories
 };

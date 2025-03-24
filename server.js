@@ -15,12 +15,14 @@ const {
     getCancelingShippers,
     searchUpdatingShippers,
     searchCancelingShippers,
-    getShipperUpdateDetails
+    getShipperUpdateDetails,
+    getShipperBalance
 } = require("./controllers/Manageshipper");
 
 const { loginShipper } = require("./controllers/Login");
 const { addShipper, checkPhoneExists, checkEmailExists, checkCitizenIDExists } = require('./controllers/ShipperRegister');
 const { forgotPassword, resetPassword } = require("./controllers/ForgotPassword");
+const { calculateRankings } = require("./controllers/ShipperRanking");
 const {
     getRevenueOverview,
     getRevenueByDay,
@@ -38,7 +40,8 @@ const {
     getMyDeliveryOrders,
     getHistoryDeliveryOrders,
     pickOrder, confirmDeliveryOrder,
-    getAllMyDeliveryOrders
+    getAllMyDeliveryOrders,
+    updateShippingFee
 } = require("./controllers/Order");
 const {
     getShipperDetails,
@@ -56,9 +59,19 @@ const {
     getCustomerOrderReports
 } = require("./controllers/ReportController");
 
-const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet, getOrderDetailsByDate, getTransactionHistory } = require("./controllers/ShipperAccount");
-const { getIncidentById, getIncidentCategories, getIncidentTimeStats, getIncidentTypeStats, getIncidentShipperStats, getIncidents, getSummaryStats, getShippers_Incident, exportReport } = require('./controllers/IncidentOp');
+const {getIncidentById,
+    getIncidentCategories,
+    getIncidentTimeStats,
+    getIncidentTypeStats,
+    getIncidentShipperStats,
+    getIncidents,
+    getSummaryStats,
+    getShippers_Incident,
+    exportReportExcel,
+    exportReportPdf}=require('./controllers/IncidentOp');
+const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet,getOrderDetailsByDate,getTransactionHistory } = require("./controllers/ShipperAccount");
 const { getEscrowBalance, depositToEscrow, updateShipperStatus } = require("./controllers/EscrowController");
+
 const app = express();
 // Notification
 const {
@@ -91,10 +104,12 @@ app.get("/api/shippers", getShippers);
 app.put("/api/shippers/:id/update", updateShipper);
 app.put("/api/shippers/:id/cancel", cancelShipperAccount);
 app.get("/api/shipper/:id/raw-wallet", getWalletData);
-app.get('/api/shipper/:id/total-wallet', getTotalWallet);
+app.get("/api/shipper/:id/total-wallet", getTotalWallet);
 app.put("/api/shippers/:id", updateShipper);
 app.post('/api/shipper/:id/deposit', depositToWallet);
-app.post('/api/shipper/:id/withdraw', withdrawFromWallet);
+
+// Lấy số dư tài khoản shipper
+app.get("/api/getShipperBalance/:shipperID", authenticateToken, getShipperBalance);
 app.get('/api/shipper/:id/orders-by-date', getOrderDetailsByDate);
 app.get("/api/shipper/:id/transaction-history", getTransactionHistory);
 
@@ -185,6 +200,8 @@ app.get("/api/search-canceling-shippers", searchCancelingShippers);
 app.post("/api/change-shipper-status", changeShipperStatus);
 // API: Chi tiết cập nhật thông tin shipper
 app.get("/api/shipper-update-details/:id", getShipperUpdateDetails);
+// API: Chi tiết cập nhật phí ship
+app.put('/api/updateShippingFee', updateShippingFee);
 
 //API: Sự cố shipper
 app.post("/api/reports/order", createOrderReport);
@@ -211,7 +228,9 @@ app.get("/api/incidents/shippers", getShippers_Incident);
 //Get incident by id
 app.get("/api/incidents/:id", getIncidentById);
 //Export report
-app.get("/api/export-report", exportReport);
+app.post("/api/export-report/xlsx",exportReportExcel);
+//Export report
+app.post("/api/export-report/pdf",exportReportPdf);
 
 // API: AI
 app.use('/api', chatRoutes);
@@ -219,11 +238,13 @@ app.use('/api', chatRoutes);
 app.get("/api/notifications", getNotifications); // Lấy danh sách thông báo
 app.put("/api/notifications/:id/read", markAsRead); // Đánh dấu thông báo đã đọc
 app.put("/api/notifications/mark-all-read", markAllNotificationsAsRead);
-
 //Escrow
 app.get("/api/escrow/balance", getEscrowBalance);
 app.post("/api/escrow/deposit", depositToEscrow);
 app.post("/api/shipper/update-status", updateShipperStatus);
+// Shipper Ranking Routes
+app.get("/api/shippers/rankings/calculate", authenticateToken, calculateRankings);
+
 // Chạy server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

@@ -1,14 +1,14 @@
 const db = require("../config/DBConnect");
-
+const { createAdminNotification } = require("./AdminNotificationController");
 // Báo cáo sự cố đơn hàng
 const createOrderReport = (req, res) => {
     const { orderId, incidentCategory, description } = req.body;
 
     // Kiểm tra dữ liệu đầu vào
     if (!orderId || !incidentCategory || !description) {
-        return res.status(400).json({ 
-            success: false, 
-            message: "Vui lòng cung cấp đầy đủ thông tin" 
+        return res.status(400).json({
+            success: false,
+            message: "Vui lòng cung cấp đầy đủ thông tin"
         });
     }
 
@@ -16,16 +16,16 @@ const createOrderReport = (req, res) => {
     const orderQuery = "SELECT ShipperID FROM orders WHERE OrderID = ?";
     db.query(orderQuery, [orderId], (orderErr, orderResults) => {
         if (orderErr) {
-            return res.status(500).json({ 
-                success: false, 
-                message: "Lỗi truy vấn đơn hàng" 
+            return res.status(500).json({
+                success: false,
+                message: "Lỗi truy vấn đơn hàng"
             });
         }
 
         if (orderResults.length === 0) {
-            return res.status(404).json({ 
-                success: false, 
-                message: "Không tìm thấy đơn hàng" 
+            return res.status(404).json({
+                success: false,
+                message: "Không tìm thấy đơn hàng"
             });
         }
 
@@ -37,19 +37,19 @@ const createOrderReport = (req, res) => {
             (ShipperID, OrderID, IncidentType, Description, IncidentCategory, Status) 
             VALUES (?, ?, 'Giao hàng', ?, ?, 'Pending')
         `;
-        
+
         db.query(insertQuery, [shipperID, orderId, description, incidentCategory], (insertErr, insertResult) => {
             if (insertErr) {
-                return res.status(500).json({ 
-                    success: false, 
-                    message: "Lỗi tạo báo cáo" 
+                return res.status(500).json({
+                    success: false,
+                    message: "Lỗi tạo báo cáo"
                 });
             }
 
-            res.status(201).json({ 
-                success: true, 
+            res.status(201).json({
+                success: true,
                 message: "Báo cáo sự cố đã được gửi",
-                reportId: insertResult.insertId 
+                reportId: insertResult.insertId
             });
         });
     });
@@ -60,10 +60,10 @@ const createShipperReport = (req, res) => {
     const { incidentCategory, description, shipperId } = req.body;
 
     // Kiểm tra dữ liệu đầu vào
-    if (!incidentCategory || !description|| !shipperId) {
-        return res.status(400).json({ 
-            success: false, 
-            message: "Vui lòng cung cấp đầy đủ thông tin" 
+    if (!incidentCategory || !description || !shipperId) {
+        return res.status(400).json({
+            success: false,
+            message: "Vui lòng cung cấp đầy đủ thông tin"
         });
     }
 
@@ -73,19 +73,19 @@ const createShipperReport = (req, res) => {
         (ShipperID, IncidentType, Description, IncidentCategory, Status) 
         VALUES (?, 'Tai nạn', ?, ?, 'Pending')
     `;
-    
+
     db.query(insertQuery, [shipperId, description, incidentCategory], (insertErr, insertResult) => {
         if (insertErr) {
-            return res.status(500).json({ 
-                success: false, 
-                message: "Lỗi tạo báo cáo" 
+            return res.status(500).json({
+                success: false,
+                message: "Lỗi tạo báo cáo"
             });
         }
 
-        res.status(201).json({ 
-            success: true, 
+        res.status(201).json({
+            success: true,
             message: "Báo cáo sự cố đã được gửi",
-            reportId: insertResult.insertId 
+            reportId: insertResult.insertId
         });
     });
 };
@@ -107,9 +107,9 @@ const getOrderReports = (req, res) => {
 
     db.query(query, (err, results) => {
         if (err) {
-            return res.status(500).json({ 
-                success: false, 
-                message: "Lỗi lấy báo cáo" 
+            return res.status(500).json({
+                success: false,
+                message: "Lỗi lấy báo cáo"
             });
         }
 
@@ -135,9 +135,9 @@ const getShipperReports = (req, res) => {
 
     db.query(query, (err, results) => {
         if (err) {
-            return res.status(500).json({ 
-                success: false, 
-                message: "Lỗi lấy báo cáo" 
+            return res.status(500).json({
+                success: false,
+                message: "Lỗi lấy báo cáo"
             });
         }
 
@@ -163,22 +163,34 @@ const updateReportStatus = (req, res) => {
 
     db.query(query, [status, reportId], (err, result) => {
         if (err) {
-            return res.status(500).json({ 
-                success: false, 
-                message: "Lỗi cập nhật trạng thái" 
+            return res.status(500).json({
+                success: false,
+                message: "Lỗi cập nhật trạng thái"
             });
         }
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({ 
-                success: false, 
-                message: "Không tìm thấy báo cáo" 
+            return res.status(404).json({
+                success: false,
+                message: "Không tìm thấy báo cáo"
             });
         }
+        // Tạo thông báo
+        const notification = {
+            Title: "Cập Nhật Báo Cáo",
+            Message: `Báo cáo (ID: ${reportId}) đã được cập nhật trạng thái thành ${status}.`,
+            Type: "info",
+        };
+        db.query("INSERT INTO adminnotification (Title, Message, Type) VALUES (?, ?, ?)",
+            [notification.Title, notification.Message, notification.Type],
+            (notifErr) => {
+                if (notifErr) console.error("Lỗi khi tạo thông báo:", notifErr);
+            }
+        );
 
-        res.json({ 
-            success: true, 
-            message: "Cập nhật trạng thái thành công" 
+        res.json({
+            success: true,
+            message: "Cập nhật trạng thái thành công"
         });
     });
 };
@@ -203,9 +215,9 @@ const getCustomerOrderReports = (req, res) => {
 
     db.query(query, [customerId], (err, results) => {
         if (err) {
-            return res.status(500).json({ 
-                success: false, 
-                message: "Lỗi lấy báo cáo" 
+            return res.status(500).json({
+                success: false,
+                message: "Lỗi lấy báo cáo"
             });
         }
 

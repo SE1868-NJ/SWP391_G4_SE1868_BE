@@ -10,7 +10,7 @@ const generateResetToken = () => {
   return crypto.randomBytes(32).toString('hex');
 };
 
-exports.forgotPassword = (req, res) => {
+const forgotPassword = (req, res) => {
   const { email } = req.body;
 
   // Kiểm tra email
@@ -60,7 +60,7 @@ exports.forgotPassword = (req, res) => {
   });
 };
 
-exports.resetPassword = (req, res) => {
+const resetPassword = (req, res) => {
   const { email, resetToken, newPassword } = req.body;
 
   // Kiểm tra đầu vào
@@ -104,3 +104,5 @@ exports.resetPassword = (req, res) => {
     });
   });
 };
+
+module.exports = { forgotPassword, resetPassword };
