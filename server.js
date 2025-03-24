@@ -56,16 +56,16 @@ const {
     getCustomerOrderReports
 } = require("./controllers/ReportController");
 
-const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet,getOrderDetailsByDate,getTransactionHistory } = require("./controllers/ShipperAccount");
-const {getIncidentById,getIncidentCategories,getIncidentTimeStats,getIncidentTypeStats,getIncidentShipperStats,getIncidents,getSummaryStats,getShippers_Incident,exportReport}=require('./controllers/IncidentOp');
-
+const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet, getOrderDetailsByDate, getTransactionHistory } = require("./controllers/ShipperAccount");
+const { getIncidentById, getIncidentCategories, getIncidentTimeStats, getIncidentTypeStats, getIncidentShipperStats, getIncidents, getSummaryStats, getShippers_Incident, exportReport } = require('./controllers/IncidentOp');
+const { getEscrowBalance, depositToEscrow, updateShipperStatus } = require("./controllers/EscrowController");
 const app = express();
 // Notification
-const { 
-    getNotifications, 
-    markAsRead, 
+const {
+    getNotifications,
+    markAsRead,
     createOrderNotification,
-    markAllNotificationsAsRead 
+    markAllNotificationsAsRead
 } = require("./controllers/NotificationController");
 // Enhanced CORS configuration
 app.use(cors({
@@ -195,23 +195,23 @@ app.put("/api/reports/:reportId", updateReportStatus);
 app.get("/api/customer-order-reports", getCustomerOrderReports);
 app.put("/api/orders/:id/status", changeStatusOrder);
 //API: Operator xem báo cáo sự cố
-app.get("/api/incidents",getIncidents);
+app.get("/api/incidents", getIncidents);
 
-app.get("/api/incidents/categories",getIncidentCategories); 
+app.get("/api/incidents/categories", getIncidentCategories);
 //Get incident time stats
-app.get("/api/incidents/time-stats",getIncidentTimeStats);
+app.get("/api/incidents/time-stats", getIncidentTimeStats);
 //Get incident type stats
-app.get("/api/incidents/type-stats",getIncidentTypeStats);
+app.get("/api/incidents/type-stats", getIncidentTypeStats);
 //Get incident shipper stats
-app.get("/api/incidents/shipper-stats",getIncidentShipperStats);
+app.get("/api/incidents/shipper-stats", getIncidentShipperStats);
 //Get summary stats
-app.get("/api/incidents/summary-stats",getSummaryStats);
+app.get("/api/incidents/summary-stats", getSummaryStats);
 //Get shippers incident
-app.get("/api/incidents/shippers",getShippers_Incident);
+app.get("/api/incidents/shippers", getShippers_Incident);
 //Get incident by id
-app.get("/api/incidents/:id",getIncidentById);
+app.get("/api/incidents/:id", getIncidentById);
 //Export report
-app.get("/api/export-report",exportReport);
+app.get("/api/export-report", exportReport);
 
 // API: AI
 app.use('/api', chatRoutes);
@@ -219,6 +219,11 @@ app.use('/api', chatRoutes);
 app.get("/api/notifications", getNotifications); // Lấy danh sách thông báo
 app.put("/api/notifications/:id/read", markAsRead); // Đánh dấu thông báo đã đọc
 app.put("/api/notifications/mark-all-read", markAllNotificationsAsRead);
+
+//Escrow
+app.get("/api/escrow/balance", getEscrowBalance);
+app.post("/api/escrow/deposit", depositToEscrow);
+app.post("/api/shipper/update-status", updateShipperStatus);
 // Chạy server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

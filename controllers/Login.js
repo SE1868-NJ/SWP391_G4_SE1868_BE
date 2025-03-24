@@ -93,6 +93,18 @@ const loginShipper = async (req, res) => {
       );
 
       switch (shipper.Status) {
+        case 'PendingDepositEscrow':
+          return res.json({
+            success: true,
+            token,
+            redirectToEscrow: true,
+            shipper: {
+              ShipperID: shipper.ShipperID,
+              FullName: shipper.FullName,
+              Email: shipper.Email,
+              Status: shipper.Status
+            }
+          });
         case 'Active':
           return res.json({
             success: true,
