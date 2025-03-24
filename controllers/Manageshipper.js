@@ -1,8 +1,9 @@
-const db = require("../config/DBConnect");  
+const db = require("../config/DBConnect");
 
 // API: Lấy danh sách shipper
 const getShippers = (req, res) => {
-  const sql = "SELECT * FROM Shippers where Status = 'Active'or Status = 'Inactive'";
+  const sql =
+    "SELECT * FROM Shippers where Status = 'Active'or Status = 'Inactive'";
   db.query(sql, (err, results) => {
     if (err) {
       return res.status(500).send(err.message);
@@ -35,27 +36,26 @@ const getPendingRegisterShippers = (req, res) => {
   const sql = "SELECT * FROM Shippers WHERE Status = 'PendingRegister'";
   db.query(sql, (err, results) => {
     if (err) {
-      console.error('Error fetching shippers:', err);
-      return res.status(500).json({ 
-        success: false, 
-        message: "Server error retrieving shippers" 
+      console.error("Error fetching shippers:", err);
+      return res.status(500).json({
+        success: false,
+        message: "Server error retrieving shippers",
       });
     }
     res.json(results);
   });
 };
 
-
 //API: Duyệt cập nhật thông tin shipper
 // const approveUpdateShipper = (req, res) => {
 //   const { id } = req.body;
-  
+
 //   // SQL query to update the status to 'Updated' and 'Active'
 //   const sql = `
 //     UPDATE Shippers
 //     SET Status = 'Updated'
 //     WHERE ShipperID = ? AND Status = 'PendingUpdate';
-    
+
 //     UPDATE Shippers
 //     SET Status = 'Active'
 //     WHERE ShipperID = ? AND Status = 'Updated';
@@ -92,12 +92,10 @@ const getPendingRegisterShippers = (req, res) => {
 //   });
 // };
 
-
-
 // API: Tìm kiếm shipper đã duyệt
 const searchApprovedShippers = (req, res) => {
   const { query } = req.query;
-  
+
   if (!query) {
     return res.status(400).json({ error: "Search query is required" });
   }
@@ -168,7 +166,7 @@ const searchUpdatingShippers = (req, res) => {
 const searchCancelingShippers = (req, res) => {
   const { query } = req.query;
 
-  if (!query) { 
+  if (!query) {
     return res.status(400).json({ error: "Search query is required" });
   }
 
@@ -191,7 +189,7 @@ const changeShipperStatus = (req, res) => {
   const { id, newStatus, cancelReason, cancelTime } = req.body;
 
   // Trường hợp chuyển từ PendingCancel sang Inactive (hủy tài khoản)
-  if (newStatus === 'Inactive' && cancelReason) {
+  if (newStatus === "Inactive" && cancelReason) {
     const sql = `
       UPDATE Shippers 
       SET 
@@ -200,27 +198,32 @@ const changeShipperStatus = (req, res) => {
         CancelTime = ?
       WHERE ShipperID = ? AND Status = 'PendingCancel'
     `;
-    
+
     db.query(sql, [newStatus, cancelReason, cancelTime, id], (err, result) => {
       if (err) {
         return res.status(500).send(err.message);
       }
 
       if (result.affectedRows === 0) {
-        return res.status(404).json({ message: "Không tìm thấy shipper hoặc shipper không ở trạng thái chờ hủy" });
+        return res
+          .status(404)
+          .json({
+            message:
+              "Không tìm thấy shipper hoặc shipper không ở trạng thái chờ hủy",
+          });
       }
 
-      res.json({ 
+      res.json({
         message: "Đã hủy tài khoản shipper thành công",
-        status: newStatus
+        status: newStatus,
       });
     });
   }
   // Trường hợp chuyển từ PendingUpdate sang Active
-  else if (newStatus === 'Active') {
+  else if (newStatus === "Active") {
     // Đầu tiên kiểm tra xem shipper có đang ở trạng thái PendingUpdate không
     const checkStatusSql = "SELECT Status FROM Shippers WHERE ShipperID = ?";
-    
+
     db.query(checkStatusSql, [id], (err, results) => {
       if (err) {
         return res.status(500).send(err.message);
@@ -230,7 +233,7 @@ const changeShipperStatus = (req, res) => {
         return res.status(404).json({ message: "Không tìm thấy shipper" });
       }
 
-      if (results[0].Status === 'PendingUpdate') {
+      if (results[0].Status === "PendingUpdate") {
         // Cập nhật từ các trường temp sang trường chính và xóa dữ liệu ở trường temp
         const updateSql = `
           UPDATE Shippers
@@ -271,18 +274,21 @@ const changeShipperStatus = (req, res) => {
           }
 
           if (updateResult.affectedRows === 0) {
-            return res.status(404).json({ message: "Không thể cập nhật thông tin shipper" });
+            return res
+              .status(404)
+              .json({ message: "Không thể cập nhật thông tin shipper" });
           }
 
-          res.json({ 
-            message: "Đã cập nhật thông tin và chuyển trạng thái shipper thành công",
-            status: newStatus
+          res.json({
+            message:
+              "Đã cập nhật thông tin và chuyển trạng thái shipper thành công",
+            status: newStatus,
           });
         });
       } else {
         // Nếu không phải chuyển từ PendingUpdate, chỉ cập nhật trạng thái
         const simpleSql = "UPDATE Shippers SET Status = ? WHERE ShipperID = ?";
-        
+
         db.query(simpleSql, [newStatus, id], (err, result) => {
           if (err) {
             return res.status(500).send(err.message);
@@ -292,9 +298,9 @@ const changeShipperStatus = (req, res) => {
             return res.status(404).json({ message: "Không tìm thấy shipper" });
           }
 
-          res.json({ 
+          res.json({
             message: "Đã cập nhật trạng thái shipper thành công",
-            status: newStatus
+            status: newStatus,
           });
         });
       }
@@ -302,7 +308,7 @@ const changeShipperStatus = (req, res) => {
   } else {
     // Nếu không phải chuyển sang Active hoặc từ PendingCancel sang Inactive, chỉ cập nhật trạng thái
     const sql = "UPDATE Shippers SET Status = ? WHERE ShipperID = ?";
-    
+
     db.query(sql, [newStatus, id], (err, result) => {
       if (err) {
         return res.status(500).send(err.message);
@@ -312,9 +318,9 @@ const changeShipperStatus = (req, res) => {
         return res.status(404).json({ message: "Không tìm thấy shipper" });
       }
 
-      res.json({ 
+      res.json({
         message: "Đã cập nhật trạng thái shipper thành công",
-        status: newStatus
+        status: newStatus,
       });
     });
   }
@@ -322,21 +328,23 @@ const changeShipperStatus = (req, res) => {
 // API: Lấy chi tiết shipper đang cập nhật
 const getShipperUpdateDetails = (req, res) => {
   const { id } = req.params;
-  
+
   const sql = `
     SELECT * FROM Shippers
     WHERE ShipperID = ? AND Status = 'PendingUpdate'
   `;
-  
+
   db.query(sql, [id], (err, results) => {
     if (err) {
       return res.status(500).send(err.message);
     }
-    
+
     if (results.length === 0) {
-      return res.status(404).json({ message: "Không tìm thấy thông tin cập nhật của shipper" });
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy thông tin cập nhật của shipper" });
     }
-    
+
     res.json(results[0]);
   });
 };
@@ -345,10 +353,10 @@ const getShipperUpdateDetails = (req, res) => {
 const getShipperBalance = (req, res) => {
   const ShipperID = req.params.shipperID;
 
-  console.log('Received ShipperID:', ShipperID); // Log để kiểm tra ID nhận được
+  console.log("Received ShipperID:", ShipperID); // Log để kiểm tra ID nhận được
 
   if (!ShipperID) {
-      return res.status(400).json({ message: "Thiếu ID Shipper" });
+    return res.status(400).json({ message: "Thiếu ID Shipper" });
   }
 
   const balanceQuery = `
@@ -359,44 +367,53 @@ const getShipperBalance = (req, res) => {
 
   // Sử dụng promise để bắt lỗi chi tiết hơn
   db.query(balanceQuery, [ShipperID], (error, results) => {
-      if (error) {
-          console.error("Detailed error fetching shipper balance:", {
-              message: error.message,
-              stack: error.stack,
-              sqlMessage: error.sqlMessage
-          });
-
-          return res.status(500).json({ 
-              message: "Lỗi khi truy xuất số dư",
-              errorDetails: error.message 
-          });
-      }
-
-      console.log('Query Results:', results); // Log kết quả truy vấn
-
-      if (results.length === 0) {
-          return res.status(200).json({
-              message: "Không tìm thấy ví",
-              balance: 0,
-              data: {
-                  balance: 0
-              }
-          });
-      }
-
-      const balance = results[0].balance;
-
-      return res.status(200).json({
-          message: "Lấy số dư thành công",
-          balance: balance,
-          data: {
-              balance: balance
-          }
+    if (error) {
+      console.error("Detailed error fetching shipper balance:", {
+        message: error.message,
+        stack: error.stack,
+        sqlMessage: error.sqlMessage,
       });
+
+      return res.status(500).json({
+        message: "Lỗi khi truy xuất số dư",
+        errorDetails: error.message,
+      });
+    }
+
+    console.log("Query Results:", results); // Log kết quả truy vấn
+
+    if (results.length === 0) {
+      return res.status(200).json({
+        message: "Không tìm thấy ví",
+        balance: 0,
+        data: {
+          balance: 0,
+        },
+      });
+    }
+
+    const balance = results[0].balance;
+
+    return res.status(200).json({
+      message: "Lấy số dư thành công",
+      balance: balance,
+      data: {
+        balance: balance,
+      },
+    });
   });
 };
 
-module.exports = { getShippers, getPendingRegisterShippers, searchApprovedShippers, searchPendingShippers, getUpdatingShippers, getCancelingShippers, searchUpdatingShippers, searchCancelingShippers, changeShipperStatus, getShipperUpdateDetails, getShipperBalance };
-
-
-//
+module.exports = {
+  getShippers,
+  getPendingRegisterShippers,
+  searchApprovedShippers,
+  searchPendingShippers,
+  getUpdatingShippers,
+  getCancelingShippers,
+  searchUpdatingShippers,
+  searchCancelingShippers,
+  changeShipperStatus,
+  getShipperUpdateDetails,
+  getShipperBalance,
+};
