@@ -21,6 +21,7 @@ const {
 const { loginShipper } = require("./controllers/Login");
 const { addShipper, checkPhoneExists, checkEmailExists, checkCitizenIDExists } = require('./controllers/ShipperRegister');
 const { forgotPassword, resetPassword } = require("./controllers/ForgotPassword");
+const { calculateRankings } = require("./controllers/ShipperRanking");
 const {
     getRevenueOverview,
     getRevenueByDay,
@@ -56,7 +57,7 @@ const {
     getCustomerOrderReports
 } = require("./controllers/ReportController");
 
-const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet } = require("./controllers/ShipperAccount");
+const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet, getTransactionHistory } = require("./controllers/ShipperAccount");
 const {getIncidentById,getIncidentCategories,getIncidentTimeStats,getIncidentTypeStats,getIncidentShipperStats,getIncidents,getSummaryStats,getShippers_Incident,exportReport}=require('./controllers/IncidentOp');
 
 const app = express();
@@ -96,7 +97,7 @@ app.put("/api/shippers/:id", updateShipper);
 app.post('/api/shipper/:id/deposit', depositToWallet);
 app.post('/api/shipper/:id/withdraw', withdrawFromWallet);
 
-
+app.get("/api/shipper/:id/transaction-history", getTransactionHistory);
 
 app.get("/api/shippers-auth/:id", authenticateToken, getShipperAccount);
 app.post("/api/approve-shipper", approveShipper);
@@ -218,6 +219,10 @@ app.use('/api', chatRoutes);
 app.get("/api/notifications", getNotifications); // Lấy danh sách thông báo
 app.put("/api/notifications/:id/read", markAsRead); // Đánh dấu thông báo đã đọc
 app.put("/api/notifications/mark-all-read", markAllNotificationsAsRead);
+
+// Shipper Ranking Routes
+app.get("/api/shippers/rankings/calculate", authenticateToken, calculateRankings);
+
 // Chạy server
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
