@@ -17,7 +17,7 @@ const {
     searchCancelingShippers,
     getShipperUpdateDetails,
     getShipperBalance
-} = require("./controllers/Manageshipper");
+} = require("./controllers/ManageShipper");
 
 const { loginShipper } = require("./controllers/Login");
 const { addShipper, checkPhoneExists, checkEmailExists, checkCitizenIDExists } = require('./controllers/ShipperRegister');
@@ -69,6 +69,15 @@ const {getIncidentById,
     exportReportExcel,
     exportReportPdf}=require('./controllers/IncidentOp');
 const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet,getOrderDetailsByDate,getTransactionHistory } = require("./controllers/ShipperAccount");
+
+const {
+        getAllBonuses,
+        searchBonuses,
+        calculateBonuses,
+        getBonusSettings,
+        updateBonusSettings,
+        exportBonusExcel
+} = require('./controllers/BonusController');
 
 const app = express();
 // Notification
@@ -231,6 +240,13 @@ app.post("/api/export-report/xlsx",exportReportExcel);
 //Export report
 app.post("/api/export-report/pdf",exportReportPdf);
 
+//Bonus Routes
+app.get("/api/bonus/list", getAllBonuses);
+app.get("/api/bonus/search", searchBonuses);
+app.get("/api/bonus/calculate", calculateBonuses);
+app.get("/api/bonus/settings", getBonusSettings);
+app.put("/api/bonus/settings", updateBonusSettings);
+app.post("/api/bonus/export", exportBonusExcel);
 // API: AI
 app.use('/api', chatRoutes);
 //notifications

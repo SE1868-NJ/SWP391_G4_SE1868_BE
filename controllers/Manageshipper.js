@@ -341,7 +341,6 @@ const getShipperUpdateDetails = (req, res) => {
   });
 };
 
-// Controller
 const getShipperBalance = (req, res) => {
   const ShipperID = req.params.shipperID;
 
@@ -395,5 +394,4 @@ const getShipperBalance = (req, res) => {
       });
   });
 };
-
 module.exports = { getShippers, getPendingRegisterShippers, searchApprovedShippers, searchPendingShippers, getUpdatingShippers, getCancelingShippers, searchUpdatingShippers, searchCancelingShippers, changeShipperStatus, getShipperUpdateDetails, getShipperBalance };
