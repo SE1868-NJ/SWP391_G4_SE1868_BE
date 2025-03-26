@@ -19,7 +19,7 @@ const getAllBonuses = (req, res) => {
        WHERE r.ShipperID = b.ShipperID 
        AND r.IsLatest = 1 
        AND DATE_FORMAT(r.CreatedAt, '%Y-%m') = ?) AS Rating4Count,
-      'pending' as Status
+      b.status as Status
     FROM Bonus b
     JOIN shippers s ON b.ShipperID = s.ShipperID
     WHERE DATE_FORMAT(b.Month, '%Y-%m') = ?
@@ -79,7 +79,7 @@ const searchBonuses = (req, res) => {
        WHERE r.ShipperID = b.ShipperID 
        AND r.IsLatest = 1 
        AND DATE_FORMAT(r.CreatedAt, '%Y-%m') = ?) AS Rating4Count,
-      'pending' as Status
+      b.status as Status
     FROM Bonus b
     JOIN shippers s ON b.ShipperID = s.ShipperID
     WHERE (s.FullName LIKE ? OR b.ShipperID LIKE ?)
@@ -125,16 +125,7 @@ const searchBonuses = (req, res) => {
 };
 
 // API tính toán bonus
-const calculateBonuses = (req, res) => {
-  const { month } = req.body;
 
-  // Stored procedure or complex calculation logic would go here
-  // This is a placeholder for the actual bonus calculation
-  res.status(501).json({
-    message: 'Tính toán thưởng chưa được triển khai',
-    month: month
-  });
-};
 
 // API lấy cài đặt bonus
 const getBonusSettings = (req, res) => {
@@ -390,14 +381,114 @@ const processBonusPayment = (req, res) => {
     );
   });
 };
+const calculateBonusForShipper = (req, res) => {
+  const { month } = req.body;
+
+  // Lấy cài đặt bonus hiện tại
+  const getSettingsQuery = 'SELECT * FROM bonus_settings LIMIT 1';
+  
+  db.query(getSettingsQuery, (settingsErr, settingsResult) => {
+    if (settingsErr) {
+      return res.status(500).json({ error: settingsErr.message });
+    }
+
+    const settings = settingsResult[0];
+
+    // Truy vấn để lấy thông tin shipper và rating
+    const shipperDataQuery = `
+      SELECT 
+        b.ShipperID, 
+        b.TotalOrders,
+        (SELECT SUM(CASE WHEN r.Rating = 5 THEN 1 ELSE 0 END) 
+         FROM ratings r 
+         WHERE r.ShipperID = b.ShipperID 
+         AND r.IsLatest = 1 
+         AND DATE_FORMAT(r.CreatedAt, '%Y-%m') = ?) AS Rating5Count,
+        (SELECT SUM(CASE WHEN r.Rating = 4 THEN 1 ELSE 0 END) 
+         FROM ratings r 
+         WHERE r.ShipperID = b.ShipperID 
+         AND r.IsLatest = 1 
+         AND DATE_FORMAT(r.CreatedAt, '%Y-%m') = ?) AS Rating4Count,
+        b.AvgRating
+      FROM Bonus b
+      WHERE DATE_FORMAT(b.Month, '%Y-%m') = ?
+    `;
+
+    db.query(shipperDataQuery, [month, month, month], (dataErr, shipperData) => {
+      if (dataErr) {
+        return res.status(500).json({ error: dataErr.message });
+      }
+
+      // Bắt đầu transaction để đảm bảo tính toàn vẹn dữ liệu
+      db.beginTransaction((transactionErr) => {
+        if (transactionErr) {
+          return res.status(500).json({ error: transactionErr.message });
+        }
+
+        // Mảng để lưu các câu truy vấn update
+        const updateQueries = [];
+
+        shipperData.forEach(shipper => {
+          const rating5Percentage = (shipper.Rating5Count / shipper.TotalOrders) * 100;
+          const rating4And5Percentage = ((shipper.Rating5Count + shipper.Rating4Count) / shipper.TotalOrders) * 100;
+
+          let bonusAmount = settings.OtherBonus; // Mức thưởng mặc định
+
+          // Tính toán bonus dựa trên các ngưỡng
+          if (rating5Percentage >= settings.Rating5Threshold) {
+            bonusAmount = settings.Rating5Bonus * shipper.TotalOrders;
+          } else if (rating4And5Percentage >= settings.Rating4And5Threshold) {
+            bonusAmount = settings.Rating4And5Bonus * shipper.TotalOrders;
+          }
+
+          // Thêm câu truy vấn update vào mảng
+          updateQueries.push(
+            new Promise((resolve, reject) => {
+              db.query(
+                `UPDATE Bonus 
+                 SET BonusAmount = ?
+                 WHERE ShipperID = ? AND DATE_FORMAT(Month, '%Y-%m') = ?`, 
+                [bonusAmount, shipper.ShipperID, month],
+                (updateErr) => {
+                  if (updateErr) reject(updateErr);
+                  else resolve();
+                }
+              );
+            })
+          );
+        });
+
+        // Thực thi tất cả các câu truy vấn update
+        Promise.all(updateQueries)
+          .then(() => {
+            db.commit((commitErr) => {
+              if (commitErr) {
+                return db.rollback(() => {
+                  res.status(500).json({ error: commitErr.message });
+                });
+              }
+              res.json({ 
+                message: 'Đã tính lại tiền thưởng cho tất cả Shipper',
+                updatedCount: shipperData.length
+              });
+            });
+          })
+          .catch((updateErr) => {
+            db.rollback(() => {
+              res.status(500).json({ error: updateErr.message });
+            });
+          });
+      });
+    });
+  });
+};
 module.exports = {
   processBonusPayment,
   getAllBonuses,
   searchBonuses,
   getBonusSettings,
-  
   updateBonusSettings,
   exportBonusExcel,
- 
+  calculateBonusForShipper
 
 };

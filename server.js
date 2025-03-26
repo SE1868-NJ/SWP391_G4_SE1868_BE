@@ -76,7 +76,8 @@ const {
         processBonusPayment,
         getBonusSettings,
         updateBonusSettings,
-        exportBonusExcel
+        exportBonusExcel,
+        calculateBonusForShipper
 } = require('./controllers/BonusController');
 
 const app = express();
@@ -247,6 +248,7 @@ app.get("/api/bonus/settings", getBonusSettings);
 app.put("/api/bonus/update-settings", updateBonusSettings);
 app.post("/api/bonus/pay", processBonusPayment);
 app.post("/api/bonus/export", exportBonusExcel);
+app.post("/api/bonus/recalculate", calculateBonusForShipper);
 
 
 // API: AI
