@@ -4,7 +4,7 @@ const cors = require("cors");
 const { authenticateToken } = require('./controllers/middleware/authMiddleware');
 
 // Import controllers
-const { submitContact, getContacts } = require("./controllers/ContactController");
+const { submitContact, getContacts, resolveContact } = require("./controllers/ContactController");
 const {
     getShippers,
     getPendingRegisterShippers,
@@ -39,7 +39,8 @@ const {
     getMyDeliveryOrders,
     getHistoryDeliveryOrders,
     pickOrder, confirmDeliveryOrder,
-    getAllMyDeliveryOrders
+    getAllMyDeliveryOrders,
+    updateShippingFee
 } = require("./controllers/Order");
 const {
     getShipperDetails,
@@ -57,7 +58,9 @@ const {
     getCustomerOrderReports
 } = require("./controllers/ReportController");
 
-const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet } = require("./controllers/ShipperAccount");
+const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet, withdrawFromWallet,getOrderDetailsByDate,getTransactionHistory } = require("./controllers/ShipperAccount");
+const {getIncidentById,getIncidentCategories,getIncidentTimeStats,getIncidentTypeStats,getIncidentShipperStats,getIncidents,getSummaryStats,getShippers_Incident,exportReport}=require('./controllers/IncidentOp');
+
 const app = express();
 // Notification
 const { 
@@ -89,14 +92,16 @@ app.get("/api/shippers", getShippers);
 
 app.put("/api/shippers/:id/update", updateShipper);
 app.put("/api/shippers/:id/cancel", cancelShipperAccount);
-app.get("/api/shipper/:id/wallet", authenticateToken, getWalletData);
-app.get('/api/shipper/:id/total-wallet', getTotalWallet);
+app.get("/api/shipper/:id/raw-wallet", getWalletData);
+app.get("/api/shipper/:id/total-wallet", getTotalWallet);
 app.put("/api/shippers/:id", updateShipper);
 app.post('/api/shipper/:id/deposit', depositToWallet);
 app.post('/api/shipper/:id/withdraw', withdrawFromWallet);
 
 // Lấy số dư tài khoản shipper
 app.get("/api/getShipperBalance/:shipperID", authenticateToken, getShipperBalance);
+app.get('/api/shipper/:id/orders-by-date', getOrderDetailsByDate);
+app.get("/api/shipper/:id/transaction-history", getTransactionHistory);
 
 
 app.get("/api/shippers-auth/:id", authenticateToken, getShipperAccount);
@@ -147,7 +152,7 @@ app.get("/api/revenue-overview", getRevenueOverview);
 app.get("/api/revenue-by-day", getRevenueByDay);
 app.get("/api/revenue-by-region", getRevenueByRegion);
 app.get("/api/revenue-by-service", getRevenueByService);
-app.get("/api/orders", getOrders);
+app.get('/api/orders', getOrders);
 app.get("/api/payments", getPayments);
 app.get("/api/fees", getFees);
 app.get("/api/alerts", getAlerts);
@@ -155,6 +160,7 @@ app.get("/api/alerts", getAlerts);
 // Contact Routes
 app.post("/api/contact/submit", submitContact);
 app.get("/api/contact/list", getContacts);
+app.post("/api/contact/resolve/:id", resolveContact); // API mới để xử lý liên hệ
 
 app.put("/api/shippers/:id", updateShipper);
 
@@ -185,6 +191,8 @@ app.get("/api/search-canceling-shippers", searchCancelingShippers);
 app.post("/api/change-shipper-status", changeShipperStatus);
 // API: Chi tiết cập nhật thông tin shipper
 app.get("/api/shipper-update-details/:id", getShipperUpdateDetails);
+// API: Chi tiết cập nhật phí ship
+app.put('/api/updateShippingFee', updateShippingFee);
 
 //API: Sự cố shipper
 app.post("/api/reports/order", createOrderReport);
@@ -194,6 +202,24 @@ app.get("/api/shipper-reports", getShipperReports);
 app.put("/api/reports/:reportId", updateReportStatus);
 app.get("/api/customer-order-reports", getCustomerOrderReports);
 app.put("/api/orders/:id/status", changeStatusOrder);
+//API: Operator xem báo cáo sự cố
+app.get("/api/incidents",getIncidents);
+
+app.get("/api/incidents/categories",getIncidentCategories); 
+//Get incident time stats
+app.get("/api/incidents/time-stats",getIncidentTimeStats);
+//Get incident type stats
+app.get("/api/incidents/type-stats",getIncidentTypeStats);
+//Get incident shipper stats
+app.get("/api/incidents/shipper-stats",getIncidentShipperStats);
+//Get summary stats
+app.get("/api/incidents/summary-stats",getSummaryStats);
+//Get shippers incident
+app.get("/api/incidents/shippers",getShippers_Incident);
+//Get incident by id
+app.get("/api/incidents/:id",getIncidentById);
+//Export report
+app.get("/api/export-report",exportReport);
 
 // API: AI
 app.use('/api', chatRoutes);

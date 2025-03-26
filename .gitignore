@@ -38,3 +38,6 @@ yarn-error.log*
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+.DBConnect.js
+.node_modules
