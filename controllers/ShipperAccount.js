@@ -778,7 +778,7 @@ const withdrawFromWallet = async (req, res) => {
 const getTransactionHistory = async (req, res) => {
   try {
     const shipperId = req.params.id;
-
+    const { searchDate } = req.query;
     if (req.user && req.user.id !== Number.parseInt(shipperId) && req.user.role !== "admin") {
       return res.status(403).json({
         success: false,
@@ -805,7 +805,7 @@ const getTransactionHistory = async (req, res) => {
     const currentBalance = balanceResults ? Number(balanceResults.Balance) : 0;
 
     // Lấy lịch sử giao dịch
-    const query = `
+    let query = `
       SELECT 
         TransactionID as id,
         Type as type,
@@ -817,12 +817,16 @@ const getTransactionHistory = async (req, res) => {
         ReferenceID as referenceId
       FROM TransactionHistory
       WHERE ShipperID = ?
-      ORDER BY TransactionDate DESC
-      LIMIT 50
     `;
+    let queryParams = [shipperId];
 
+    if (searchDate) {
+      query += ` AND DATE(TransactionDate) = ?`;
+      queryParams.push(searchDate);
+    }
+    query += ` ORDER BY TransactionDate DESC LIMIT 50`;
     const transactions = await new Promise((resolve, reject) => {
-      db.query(query, [shipperId], (err, results) => {
+      db.query(query, queryParams, (err, results) => {
         if (err) reject(err);
         else resolve(results);
       });
@@ -834,8 +838,8 @@ const getTransactionHistory = async (req, res) => {
       const amount = Number(transaction.amount);
       const balanceAfterTransaction = 
         transaction.type === "deposit" 
-          ? runningBalance - amount  // Trừ ngược lại để tính số dư trước giao dịch, sau đó cộng amount để có số dư sau giao dịch
-          : runningBalance + amount; // Cộng ngược lại để tính số dư trước giao dịch, sau đó trừ amount để có số dư sau giao dịch
+          ? runningBalance - amount 
+          : runningBalance + amount; 
       
       runningBalance = 
         transaction.type === "deposit" 
