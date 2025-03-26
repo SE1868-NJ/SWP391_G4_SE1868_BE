@@ -73,7 +73,7 @@ const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, g
 const {
         getAllBonuses,
         searchBonuses,
-        calculateBonuses,
+        processBonusPayment,
         getBonusSettings,
         updateBonusSettings,
         exportBonusExcel
@@ -243,10 +243,12 @@ app.post("/api/export-report/pdf",exportReportPdf);
 //Bonus Routes
 app.get("/api/bonus/list", getAllBonuses);
 app.get("/api/bonus/search", searchBonuses);
-app.get("/api/bonus/calculate", calculateBonuses);
 app.get("/api/bonus/settings", getBonusSettings);
-app.put("/api/bonus/settings", updateBonusSettings);
+app.put("/api/bonus/update-settings", updateBonusSettings);
+app.post("/api/bonus/pay", processBonusPayment);
 app.post("/api/bonus/export", exportBonusExcel);
+
+
 // API: AI
 app.use('/api', chatRoutes);
 //notifications
