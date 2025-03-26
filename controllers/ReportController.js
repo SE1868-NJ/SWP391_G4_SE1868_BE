@@ -190,7 +190,8 @@ const updateReportStatus = (req, res) => {
 
 // Lấy báo cáo đơn hàng cho customer
 const getCustomerOrderReports = (req, res) => {
-    const { customerId } = req.query; // Thêm customerId từ query
+    //const { customerId } = req.query; 
+    const customerId = req.user.customerId;
 
     const query = `
         SELECT 
