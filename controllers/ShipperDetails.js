@@ -1,5 +1,4 @@
 const db = require('../config/DBConnect');
-const { createAdminNotification } = require("./AdminNotificationController");
 
 // API lấy chi tiết shipper theo ID
 const getShipperDetails = (req, res) => {
@@ -51,12 +50,6 @@ const rejectRegisterShipper = (req, res) => {
                     Message: `Shipper ${shipperName} (ID: ${shipperId}) đã bị từ chối.`,
                     Type: "warning",
                 };
-                db.query("INSERT INTO adminnotification (Title, Message, Type) VALUES (?, ?, ?)",
-                    [notification.Title, notification.Message, notification.Type],
-                    (notifErr) => {
-                        if (notifErr) console.error("Lỗi khi tạo thông báo:", notifErr);
-                    }
-                );
 
                 res.json({
                     success: true,
@@ -116,12 +109,6 @@ const approveShipper = (req, res) => {
                     Message: `Shipper ${shipperName} (ID: ${shipperId}) đã được duyệt.`,
                     Type: "success",
                 };
-                db.query("INSERT INTO adminnotification (Title, Message, Type) VALUES (?, ?, ?)",
-                    [notification.Title, notification.Message, notification.Type],
-                    (notifErr) => {
-                        if (notifErr) console.error("Lỗi khi tạo thông báo:", notifErr);
-                    }
-                );
 
                 res.json({
                     success: true,

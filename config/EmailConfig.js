@@ -15,12 +15,12 @@ const sendConfirmationEmail = async (to, name) => {
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: to,
-      subject: 'Xác nhận thông tin liên hệ',
+      subject: 'EcoShipper xác nhận thông tin liên hệ',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Xác nhận thông tin liên hệ</h2>
           <p>Xin chào ${name},</p>
-          <p>Chúng tôi đã nhận được thông tin liên hệ của bạn. Chúng tôi sẽ phản hồi trong thời gian sớm nhất.</p>
+          <p>Chúng tôi đã nhận được thông tin liên hệ của bạn. Cảm ơn bạn đã gửi quan tâm và liên hệ với hệ thống của chúng tôi. Chúng tôi sẽ phản hồi trong thời gian sớm nhất.</p>
           <p>Trân trọng,<br>Đội ngũ hỗ trợ</p>
         </div>
       `

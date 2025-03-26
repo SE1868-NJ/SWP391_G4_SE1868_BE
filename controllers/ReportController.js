@@ -1,5 +1,4 @@
 const db = require("../config/DBConnect");
-const { createAdminNotification } = require("./AdminNotificationController");
 // Báo cáo sự cố đơn hàng
 const createOrderReport = (req, res) => {
     const { orderId, incidentCategory, description } = req.body;
@@ -181,12 +180,6 @@ const updateReportStatus = (req, res) => {
             Message: `Báo cáo (ID: ${reportId}) đã được cập nhật trạng thái thành ${status}.`,
             Type: "info",
         };
-        db.query("INSERT INTO adminnotification (Title, Message, Type) VALUES (?, ?, ?)",
-            [notification.Title, notification.Message, notification.Type],
-            (notifErr) => {
-                if (notifErr) console.error("Lỗi khi tạo thông báo:", notifErr);
-            }
-        );
 
         res.json({
             success: true,
