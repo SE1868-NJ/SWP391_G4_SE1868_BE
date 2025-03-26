@@ -73,7 +73,9 @@ const {
     markAllAsRead,
     deleteAdminNotification,
   } = require("./controllers/AdminNotificationController");
-// Enhanced CORS configuration
+//Customer
+const { loginCustomer, getCustomerOrders, getCustomerOrderDetails, submitOrderRating, getOrderRating } = require("./controllers/CustomerController");
+  // Enhanced CORS configuration
 app.use(cors({
     origin: "http://localhost:3000",
     credentials: true,
@@ -197,7 +199,8 @@ app.post("/api/reports/shipper", createShipperReport);
 app.get("/api/order-reports", getOrderReports);
 app.get("/api/shipper-reports", getShipperReports);
 app.put("/api/reports/:reportId", updateReportStatus);
-app.get("/api/customer-order-reports", getCustomerOrderReports);
+//app.get("/api/customer-order-reports", getCustomerOrderReports);
+app.get("/api/customer-order-reports", authenticateToken, getCustomerOrderReports);
 app.put("/api/orders/:id/status", changeStatusOrder);
 
 // API: AI
@@ -212,7 +215,12 @@ app.post("/api/admin-notifications", createAdminNotification); // Tạo thông b
 app.put("/api/admin-notifications/:id/read", markAdminNotificationAsRead); // Đánh dấu một thông báo là đã đọc
 app.put("/api/admin-notifications/mark-all-read", markAllAsRead); // Đánh dấu tất cả là đã đọc
 app.delete("/api/admin-notifications/:id", deleteAdminNotification); // Xóa thông báo (tùy chọn)
-
+//customer
+app.post("/api/customer/login", loginCustomer);
+app.get("/api/customer/orders", authenticateToken, getCustomerOrders);
+app.get("/api/customer/order/:orderId", authenticateToken, getCustomerOrderDetails);
+app.post("/api/customer/order/:orderId/rating", authenticateToken, submitOrderRating); // Route mới để gửi đánh giá
+app.get("/api/customer/order/:orderId/rating", authenticateToken, getOrderRating); // Route mới để lấy đánh giá
 // Chạy server
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
