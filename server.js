@@ -98,6 +98,15 @@ const {
   withdrawFromWallet,
   depositToWallet,
 } = require("./controllers/ShipperAccount");
+const {
+    getAllBonuses,
+    searchBonuses,
+    processBonusPayment,
+    getBonusSettings,
+    updateBonusSettings,
+    exportBonusExcel,
+    calculateBonusForShipper
+} = require('./controllers/BonusController');
 
 const app = express();
 // Notification
@@ -273,6 +282,16 @@ app.get("/api/incidents/:id", getIncidentById);
 app.post("/api/export-report/xlsx", exportReportExcel);
 //Export report
 app.post("/api/export-report/pdf", exportReportPdf);
+
+//Bonus Routes
+app.get("/api/bonus/list", getAllBonuses);
+app.get("/api/bonus/search", searchBonuses);
+app.get("/api/bonus/settings", getBonusSettings);
+app.put("/api/bonus/update-settings", updateBonusSettings);
+app.post("/api/bonus/pay", processBonusPayment);
+app.post("/api/bonus/export", exportBonusExcel);
+app.post("/api/bonus/recalculate", calculateBonusForShipper);
+
 
 // API: AI
 app.use("/api", chatRoutes);

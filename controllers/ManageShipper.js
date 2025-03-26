@@ -2,7 +2,7 @@ const db = require("../config/DBConnect");
 
 // API: Lấy danh sách shipper
 const getShippers = (req, res) => {
-  const sql = "SELECT * FROM Shippers where Status = 'Active'or Status = 'Inactive'";
+  const sql = "SELECT * FROM Shippers where Status = 'Active'or Status = 'Inactive' or Status = 'PendingDepositEscrow'";
   db.query(sql, (err, results) => {
     if (err) {
       return res.status(500).send(err.message);
@@ -105,7 +105,7 @@ const searchApprovedShippers = (req, res) => {
   const sql = `
     SELECT * FROM Shippers 
     WHERE (FullName LIKE ? OR PhoneNumber LIKE ? OR Email LIKE ?) 
-    AND (Status = 'Active' OR Status = 'Inactive')
+    AND (Status = 'Active' OR Status = 'Inactive' OR Status = 'PendingDepositEscrow')
   `;
 
   const searchQuery = `%${query}%`;
