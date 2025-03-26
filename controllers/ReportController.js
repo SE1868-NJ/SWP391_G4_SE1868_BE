@@ -1,5 +1,6 @@
 const db = require("../config/DBConnect");
 const { createAdminNotification } = require("./AdminNotificationController");
+const { createNotification } = require("./NotificationController");
 // Báo cáo sự cố đơn hàng
 const createOrderReport = (req, res) => {
     const { orderId, incidentCategory, description } = req.body;
@@ -46,6 +47,11 @@ const createOrderReport = (req, res) => {
                 });
             }
 
+            // Tạo thông báo cho shipper
+            const message = `Bạn đã gửi báo cáo sự cố cho đơn hàng ${orderId}. Danh mục: ${incidentCategory}. Trạng thái: Đang chờ xử lý.`;
+            createNotification(shipperID, message)
+                .catch(err => console.error("Lỗi tạo thông báo cho shipper:", err));
+
             res.status(201).json({
                 success: true,
                 message: "Báo cáo sự cố đã được gửi",
@@ -81,6 +87,11 @@ const createShipperReport = (req, res) => {
                 message: "Lỗi tạo báo cáo"
             });
         }
+
+        // Tạo thông báo cho shipper
+        const message = `Bạn đã gửi báo cáo sự cố. Danh mục: ${incidentCategory}. Trạng thái: Đang chờ xử lý.`;
+        createNotification(shipperId, message)
+            .catch(err => console.error("Lỗi tạo thông báo cho shipper:", err));
 
         res.status(201).json({
             success: true,
