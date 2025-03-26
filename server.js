@@ -58,6 +58,8 @@ const {
   confirmDeliveryOrder,
   getAllMyDeliveryOrders,
   updateShippingFee,
+  getRating,
+  getShipperRatings,
 } = require("./controllers/Order");
 const {
   getShipperDetails,
@@ -185,6 +187,9 @@ app.get("/api/getOrderDetails/:id", getOrderDetails);
 app.put("/api/pickOrder", pickOrder);
 app.put("/api/confirm-delivery-order", confirmDeliveryOrder);
 app.get("/api/get-all-my-delivery-orders/:id", getAllMyDeliveryOrders);
+//lấy order rating
+app.get("/api/getRating/:orderId", getRating);
+app.get("/api/getShipperRatings/:shipperId", getShipperRatings);
 
 // Authentication Routes
 app.post("/api/login", loginShipper);
