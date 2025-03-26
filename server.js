@@ -99,14 +99,15 @@ const {
   depositToWallet,
 } = require("./controllers/ShipperAccount");
 const {
-    getAllBonuses,
-    searchBonuses,
-    processBonusPayment,
-    getBonusSettings,
-    updateBonusSettings,
-    exportBonusExcel,
-    calculateBonusForShipper
+  getAllBonuses,
+  searchBonuses,
+  processBonusPayment,
+  getBonusSettings,
+  updateBonusSettings,
+  exportBonusExcel,
+  calculateBonusForShipper
 } = require('./controllers/BonusController');
+const { getEscrowBalance, depositToEscrow, updateShipperStatus } = require("./controllers/EscrowController");
 
 const app = express();
 // Notification
@@ -118,7 +119,7 @@ const {
 } = require("./controllers/NotificationController");
 // Enhanced CORS configuration
 const { loginCustomer, getCustomerOrders, getCustomerOrderDetails, submitOrderRating, getOrderRating } = require("./controllers/CustomerController");
-const {getAdminNotifications,
+const { getAdminNotifications,
   createAdminNotification,
   markAsRead: markAdminNotificationAsRead,
   markAllAsRead,
@@ -151,8 +152,8 @@ app.put("/api/shippers/:id/cancel", cancelShipperAccount);
 app.get("/api/shipper/:id/raw-wallet", getWalletData);
 app.get("/api/shipper/:id/total-wallet", getTotalWallet);
 app.put("/api/shippers/:id", updateShipper);
-app.post("/api/shipper/:id/deposit", depositToWallet);
-
+app.post('/api/shipper/:id/deposit', depositToWallet);
+app.post('/api/shipper/:id/withdraw', withdrawFromWallet);
 // Lấy số dư tài khoản shipper
 app.get(
   "/api/getShipperBalance/:shipperID",
@@ -299,7 +300,10 @@ app.use("/api", chatRoutes);
 app.get("/api/notifications", getNotifications); // Lấy danh sách thông báo
 app.put("/api/notifications/:id/read", markAsRead); // Đánh dấu thông báo đã đọc
 app.put("/api/notifications/mark-all-read", markAllNotificationsAsRead);
-
+//Escrow
+app.get("/api/escrow/balance", getEscrowBalance);
+app.post("/api/escrow/deposit", depositToEscrow);
+app.post("/api/shipper/update-status", updateShipperStatus);
 // Shipper Ranking Routes
 app.get(
   "/api/shippers/rankings/calculate",

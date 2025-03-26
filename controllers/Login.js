@@ -41,6 +41,28 @@ const loginShipper = async (req, res) => {
           message: "Mật khẩu không chính xác" 
         });
       }
+      // Kiểm tra số dư ví ký quỹ nếu shipper đang Active
+      const checkEscrowBalance = (callback) => {
+        if (shipper.Status === 'Active') {
+          const escrowQuery = "SELECT Escrow FROM EWallet WHERE ShipperID = ?";
+          db.query(escrowQuery, [shipper.ShipperID], (err, escrowResults) => {
+            if (err) return callback(err);
+            
+            const escrowBalance = escrowResults.length > 0 ? escrowResults[0].Escrow : 0;
+            callback(null, escrowBalance < 1000000);
+          });
+        } else {
+          callback(null, false);
+        }
+      };
+      checkEscrowBalance((err, needDeposit) => {
+        if (err) {
+          console.error("Lỗi kiểm tra ví ký quỹ:", err);
+          return res.status(500).json({ 
+            success: false, 
+            message: "Lỗi hệ thống. Vui lòng thử lại" 
+          });
+        }
 
       // Tạo token 
       const token = jwt.sign(
@@ -93,10 +115,11 @@ const loginShipper = async (req, res) => {
       );
 
       switch (shipper.Status) {
-        case 'Active':
+        case 'PendingDepositEscrow':
           return res.json({
             success: true,
-            token: token,
+            token,
+            redirectToEscrow: true,
             shipper: {
               ShipperID: shipper.ShipperID,
               FullName: shipper.FullName,
@@ -104,6 +127,31 @@ const loginShipper = async (req, res) => {
               Status: shipper.Status
             }
           });
+          case 'Active':
+            if (needDeposit) {
+              return res.json({
+                success: true,
+                token,
+                redirectToEscrow: true,
+                shipper: {
+                  ShipperID: shipper.ShipperID,
+                  FullName: shipper.FullName,
+                  Email: shipper.Email,
+                  Status: shipper.Status
+                }
+              });
+            } else {
+              return res.json({
+                success: true,
+                token: token,
+                shipper: {
+                  ShipperID: shipper.ShipperID,
+                  FullName: shipper.FullName,
+                  Email: shipper.Email,
+                  Status: shipper.Status
+                }
+              });
+            }
         
         case 'PendingRegister':
           return res.status(403).json({ 
@@ -123,6 +171,7 @@ const loginShipper = async (req, res) => {
             message: "Trạng thái tài khoản không hợp lệ" 
           });
       }
+    });
     });
   } catch (error) {
     console.error("Lỗi đăng nhập:", error);
