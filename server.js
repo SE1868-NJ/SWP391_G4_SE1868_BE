@@ -56,6 +56,9 @@ const {
   confirmDeliveryOrder,
   getAllMyDeliveryOrders,
   updateShippingFee,
+  getOrderStatistics,
+  getRating,
+  getShipperRatings
 } = require("./controllers/Order");
 const {
   getShipperDetails,
@@ -166,7 +169,7 @@ app.get("/api/getOrderDetails/:id", getOrderDetails);
 app.put("/api/pickOrder", pickOrder);
 app.put("/api/confirm-delivery-order", confirmDeliveryOrder);
 app.get("/api/get-all-my-delivery-orders/:id", getAllMyDeliveryOrders);
-
+app.get('/api/orders/statistics', getOrderStatistics); 
 // Authentication Routes
 app.post("/api/login", loginShipper);
 app.post("/api/forgot-password", forgotPassword);
@@ -276,6 +279,10 @@ app.get(
   authenticateToken,
   calculateRankings
 );
+
+// Thêm các routes cho Rating (thêm vào phần routes)
+app.get("/api/getRating/:orderId", getRating);
+app.get("/api/getShipperRatings/:shipperId", getShipperRatings);
 
 // Chạy server
 const PORT = process.env.PORT || 4000;

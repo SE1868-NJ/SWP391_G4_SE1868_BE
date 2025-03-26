@@ -149,6 +149,8 @@ const getHistoryDeliveryOrders = (req, res) => {
       let search = req.query.search || '';
       let status = req.query.status;
       let shipperID = req.query.shipperId;
+      let startDate = req.query.startDate || '';
+      let endDate = req.query.endDate || '';
 
       let offset = (page - 1) * limit;
       let countQuery = `
@@ -176,12 +178,23 @@ const getHistoryDeliveryOrders = (req, res) => {
         sql += ` AND o.OrderStatus IN ("Cancelled", "Delivered")`;
       }
 
+      if (startDate && endDate) {
+        countQuery += ` AND DATE(o.OrderDate) BETWEEN ? AND ?`;
+        sql += ` AND DATE(o.OrderDate) BETWEEN ? AND ?`;
+      }
+
       countQuery += ` ORDER BY o.EstimatedDeliveryTime`;
       sql += ` ORDER BY o.EstimatedDeliveryTime LIMIT ? OFFSET ?`;
 
-      const params = status !== "All" 
-        ? [shipperID, `%${search}%`, `%${search}%`, `%${search}%`, status]
-        : [shipperID, `%${search}%`, `%${search}%`, `%${search}%`];
+      let params = [shipperID, `%${search}%`, `%${search}%`, `%${search}%`];
+      
+      if (status !== "All") {
+        params.push(status);
+      }
+      
+      if (startDate && endDate) {
+        params.push(startDate, endDate);
+      }
 
       db.query(countQuery, params, (err, countResults) => {
         if (err) {
@@ -541,6 +554,40 @@ const getAllMyDeliveryOrders = (req, res) => {
     res.status(500).send("Internal server error.");
   }
 };
+const getOrderStatistics = async (req, res) => {
+  try {
+      const successfulOrders = await Order.countDocuments({ 
+          status: 'Delivered' 
+      });
+      
+      const failedOrders = await Order.countDocuments({ 
+          status: { $in: ['Failed', 'Cancelled'] }  // Bao gồm cả đơn hủy
+      });
+
+      const totalOrders = await Order.countDocuments();
+      
+      const successRate = ((successfulOrders / totalOrders) * 100).toFixed(2);
+      const failureRate = ((failedOrders / totalOrders) * 100).toFixed(2);
+
+      res.status(200).json({
+          success: true,
+          data: {
+              totalOrders,
+              successfulOrders,
+              failedOrders,
+              successRate: `${successRate}%`,
+              failureRate: `${failureRate}%`
+          }
+      });
+  } catch (error) {
+      res.status(500).json({
+          success: false,
+          message: "Không thể lấy thống kê đơn hàng",
+          error: error.message
+      });
+  }
+};
+
 
 const updateShippingFee = (req, res) => {
   const { OrderID, ShippingFee } = req.body;
@@ -569,6 +616,109 @@ const updateShippingFee = (req, res) => {
   });
 };
 
+// Thêm hàm lấy rating theo OrderID
+const getRating = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        
+        console.log('Fetching rating for OrderID:', orderId);
+
+        if (!orderId) {
+            return res.status(400).json({
+                message: 'OrderID không được để trống'
+            });
+        }
+
+        const query = `
+            SELECT 
+                r.RatingID,
+                r.ShipperID,
+                r.CustomerID,
+                r.OrderID,
+                r.Rating as Stars,
+                r.Feedback as Comment,
+                r.CreatedAt,
+                r.IsLatest,
+                c.FullName as CustomerName
+            FROM swp_shipper.ratings r
+            LEFT JOIN swp_shipper.customers c ON r.CustomerID = c.CustomerID
+            WHERE r.OrderID = ?
+            AND r.IsLatest = 1
+            ORDER BY r.CreatedAt DESC
+            LIMIT 1
+        `;
+
+        const [rating] = await db.promise().query(query, [orderId]);
+        console.log('Query result:', rating);
+
+        if (!rating || rating.length === 0) {
+            return res.status(200).json({
+                message: 'Không tìm thấy đánh giá cho đơn hàng này',
+                rating: null
+            });
+        }
+
+        const formattedRating = {
+            ...rating[0],
+            CreatedAt: new Date(rating[0].CreatedAt).toISOString()
+        };
+
+        return res.status(200).json({
+            message: 'Lấy thông tin đánh giá thành công',
+            rating: formattedRating
+        });
+
+    } catch (error) {
+        console.error('Database error:', error);
+        return res.status(500).json({
+            message: 'Đã xảy ra lỗi khi lấy thông tin đánh giá',
+            error: error.message
+        });
+    }
+};
+
+// Hàm lấy tất cả rating của một shipper
+const getShipperRatings = async (req, res) => {
+    try {
+        const { shipperId } = req.params;
+
+        const query = `
+            SELECT 
+                r.RatingID,
+                r.CustomerID,
+                r.OrderID,
+                r.Rating as Stars,
+                r.Feedback as Comment,
+                r.CreatedAt,
+                c.FullName as CustomerName
+            FROM swp_shipper.ratings r
+            LEFT JOIN swp_shipper.customers c ON r.CustomerID = c.CustomerID
+            WHERE r.ShipperID = ?
+            AND r.IsLatest = 1
+            ORDER BY r.CreatedAt DESC
+        `;
+
+        const [ratings] = await db.promise().query(query, [shipperId]);
+
+        const formattedRatings = ratings.map(rating => ({
+            ...rating,
+            CreatedAt: new Date(rating.CreatedAt).toISOString()
+        }));
+
+        return res.status(200).json({
+            message: 'Lấy danh sách đánh giá thành công',
+            ratings: formattedRatings
+        });
+
+    } catch (error) {
+        console.error('Database error:', error);
+        return res.status(500).json({
+            message: 'Đã xảy ra lỗi khi lấy danh sách đánh giá',
+            error: error.message
+        });
+    }
+};
+
 module.exports = { 
   getOrdersPending, 
   getMyDeliveryOrders, 
@@ -578,5 +728,8 @@ module.exports = {
   pickOrder, 
   confirmDeliveryOrder, 
   getAllMyDeliveryOrders,
-  updateShippingFee
+  updateShippingFee,
+  getOrderStatistics,
+  getRating,
+  getShipperRatings
 };
