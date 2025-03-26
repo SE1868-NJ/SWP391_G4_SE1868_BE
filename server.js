@@ -1,92 +1,122 @@
-require('dotenv').config();
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const { authenticateToken } = require('./controllers/middleware/authMiddleware');
+const {
+  authenticateToken,
+} = require("./controllers/middleware/authMiddleware");
 
 // Import controllers
-const { submitContact, getContacts } = require("./controllers/ContactController");
 const {
-    getShippers,
-    getPendingRegisterShippers,
-    searchApprovedShippers,
-    searchPendingShippers,
-    changeShipperStatus,
-    getUpdatingShippers,
-    getCancelingShippers,
-    searchUpdatingShippers,
-    searchCancelingShippers,
-    getShipperUpdateDetails,
-    getShipperBalance
+  submitContact,
+  getContacts,
+  resolveContact,
+} = require("./controllers/ContactController");
+
+const {
+  getShippers,
+  getPendingRegisterShippers,
+  searchApprovedShippers,
+  searchPendingShippers,
+  changeShipperStatus,
+  getUpdatingShippers,
+  getCancelingShippers,
+  searchUpdatingShippers,
+  searchCancelingShippers,
+  getShipperUpdateDetails,
+  getShipperBalance,
 } = require("./controllers/Manageshipper");
 
 const { loginShipper } = require("./controllers/Login");
-const { addShipper, checkPhoneExists, checkEmailExists, checkCitizenIDExists } = require('./controllers/ShipperRegister');
-const { forgotPassword, resetPassword } = require("./controllers/ForgotPassword");
+const {
+  addShipper,
+  checkPhoneExists,
+  checkEmailExists,
+  checkCitizenIDExists,
+} = require("./controllers/ShipperRegister");
+const {
+  forgotPassword,
+  resetPassword,
+} = require("./controllers/ForgotPassword");
 const { calculateRankings } = require("./controllers/ShipperRanking");
 const {
-    getRevenueOverview,
-    getRevenueByDay,
-    getRevenueByRegion,
-    getRevenueByService,
-    getOrders,
-    getPayments,
-    getFees,
-    getAlerts
+  getRevenueOverview,
+  getRevenueByDay,
+  getRevenueByRegion,
+  getRevenueByService,
+  getOrders,
+  getPayments,
+  getFees,
+  getAlerts,
 } = require("./controllers/RevenueOp");
 const {
-    changeStatusOrder,
-    getOrderDetails,
-    getOrdersPending,
-    getMyDeliveryOrders,
-    getHistoryDeliveryOrders,
-    pickOrder, confirmDeliveryOrder,
-    getAllMyDeliveryOrders,
-    updateShippingFee
+  changeStatusOrder,
+  getOrderDetails,
+  getOrdersPending,
+  getMyDeliveryOrders,
+  getHistoryDeliveryOrders,
+  pickOrder,
+  confirmDeliveryOrder,
+  getAllMyDeliveryOrders,
+  updateShippingFee,
 } = require("./controllers/Order");
 const {
-    getShipperDetails,
-    rejectRegisterShipper,
-    approveShipper
+  getShipperDetails,
+  rejectRegisterShipper,
+  approveShipper,
 } = require("./controllers/ShipperDetails");
-const chatRoutes = require('./controllers/chatBox/ChatRoutes');
+const chatRoutes = require("./controllers/chatBox/ChatRoutes");
 
 const {
-    createOrderReport,
-    createShipperReport,
-    getOrderReports,
-    getShipperReports,
-    updateReportStatus,
-    getCustomerOrderReports
+  createOrderReport,
+  createShipperReport,
+  getOrderReports,
+  getShipperReports,
+  updateReportStatus,
+  getCustomerOrderReports,
 } = require("./controllers/ReportController");
 
-const {getIncidentById,
-    getIncidentCategories,
-    getIncidentTimeStats,
-    getIncidentTypeStats,
-    getIncidentShipperStats,
-    getIncidents,
-    getSummaryStats,
-    getShippers_Incident,
-    exportReportExcel,
-    exportReportPdf}=require('./controllers/IncidentOp');
-const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet,withdrawFromWallet,getOrderDetailsByDate,getTransactionHistory } = require("./controllers/ShipperAccount");
+const {
+  getIncidentById,
+  getIncidentCategories,
+  getIncidentTimeStats,
+  getIncidentTypeStats,
+  getIncidentShipperStats,
+  getIncidents,
+  getSummaryStats,
+  getShippers_Incident,
+  exportReportExcel,
+  exportReportPdf,
+} = require("./controllers/IncidentOp");
+const {
+  getShipperAccount,
+  cancelShipperAccount,
+  updateShipper,
+  getWalletData,
+  getTotalWallet,
+  getOrderDetailsByDate,
+  getTransactionHistory,
+  withdrawFromWallet,
+  depositToWallet,
+} = require("./controllers/ShipperAccount");
 const { getEscrowBalance, depositToEscrow, updateShipperStatus } = require("./controllers/EscrowController");
 
 const app = express();
 // Notification
 const {
-    getNotifications,
-    markAsRead,
-    createOrderNotification,
-    markAllNotificationsAsRead
+  getNotifications,
+  markAsRead,
+  createOrderNotification,
+  markAllNotificationsAsRead,
 } = require("./controllers/NotificationController");
 // Enhanced CORS configuration
-app.use(cors({
+app.use(
+  cors({
     origin: "http://localhost:3000",
     credentials: true,
     methods: ["GET", "POST", "PUT", "OPTIONS", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"]
-}));
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 // Middleware
 app.use(express.json());
@@ -94,8 +124,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // Logging middleware
 app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-    next();
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
 });
 
 // 📌 --- SHIPPER ROUTES ---
@@ -109,10 +139,14 @@ app.put("/api/shippers/:id", updateShipper);
 app.post('/api/shipper/:id/deposit', depositToWallet);
 app.post('/api/shipper/:id/withdraw', withdrawFromWallet);
 // Lấy số dư tài khoản shipper
-app.get("/api/getShipperBalance/:shipperID", authenticateToken, getShipperBalance);
-app.get('/api/shipper/:id/orders-by-date', getOrderDetailsByDate);
+app.get(
+  "/api/getShipperBalance/:shipperID",
+  authenticateToken,
+  getShipperBalance
+);
+app.get("/api/shipper/:id/orders-by-date", getOrderDetailsByDate);
 app.get("/api/shipper/:id/transaction-history", getTransactionHistory);
-
+app.post("/api/shipper/:id/withdraw", withdrawFromWallet);
 
 app.get("/api/shippers-auth/:id", authenticateToken, getShipperAccount);
 app.post("/api/approve-shipper", approveShipper);
@@ -122,10 +156,10 @@ app.get("/api/shippers/:id", getShipperDetails);
 app.get("/api/getOrdersPending", getOrdersPending);
 
 //ShipperRegister Routes
-app.post('/api/shippers', addShipper);
-app.get('/api/check-phone/:phoneNumber', checkPhoneExists);
-app.get('/api/check-email/:email', checkEmailExists);
-app.get('/api/check-citizenid/:citizenId', checkCitizenIDExists);
+app.post("/api/shippers", addShipper);
+app.get("/api/check-phone/:phoneNumber", checkPhoneExists);
+app.get("/api/check-email/:email", checkEmailExists);
+app.get("/api/check-citizenid/:citizenId", checkCitizenIDExists);
 
 //lấy order
 app.get("/api/getOrderDetails/:id", getOrderDetails);
@@ -162,7 +196,7 @@ app.get("/api/revenue-overview", getRevenueOverview);
 app.get("/api/revenue-by-day", getRevenueByDay);
 app.get("/api/revenue-by-region", getRevenueByRegion);
 app.get("/api/revenue-by-service", getRevenueByService);
-app.get('/api/orders', getOrders);
+app.get("/api/orders", getOrders);
 app.get("/api/payments", getPayments);
 app.get("/api/fees", getFees);
 app.get("/api/alerts", getAlerts);
@@ -170,6 +204,7 @@ app.get("/api/alerts", getAlerts);
 // Contact Routes
 app.post("/api/contact/submit", submitContact);
 app.get("/api/contact/list", getContacts);
+app.post("/api/contact/resolve/:id", resolveContact); // API mới để xử lý liên hệ
 
 app.put("/api/shippers/:id", updateShipper);
 
@@ -201,7 +236,7 @@ app.post("/api/change-shipper-status", changeShipperStatus);
 // API: Chi tiết cập nhật thông tin shipper
 app.get("/api/shipper-update-details/:id", getShipperUpdateDetails);
 // API: Chi tiết cập nhật phí ship
-app.put('/api/updateShippingFee', updateShippingFee);
+app.put("/api/updateShippingFee", updateShippingFee);
 
 //API: Sự cố shipper
 app.post("/api/reports/order", createOrderReport);
@@ -228,12 +263,12 @@ app.get("/api/incidents/shippers", getShippers_Incident);
 //Get incident by id
 app.get("/api/incidents/:id", getIncidentById);
 //Export report
-app.post("/api/export-report/xlsx",exportReportExcel);
+app.post("/api/export-report/xlsx", exportReportExcel);
 //Export report
-app.post("/api/export-report/pdf",exportReportPdf);
+app.post("/api/export-report/pdf", exportReportPdf);
 
 // API: AI
-app.use('/api', chatRoutes);
+app.use("/api", chatRoutes);
 //notifications
 app.get("/api/notifications", getNotifications); // Lấy danh sách thông báo
 app.put("/api/notifications/:id/read", markAsRead); // Đánh dấu thông báo đã đọc
@@ -243,10 +278,14 @@ app.get("/api/escrow/balance", getEscrowBalance);
 app.post("/api/escrow/deposit", depositToEscrow);
 app.post("/api/shipper/update-status", updateShipperStatus);
 // Shipper Ranking Routes
-app.get("/api/shippers/rankings/calculate", authenticateToken, calculateRankings);
+app.get(
+  "/api/shippers/rankings/calculate",
+  authenticateToken,
+  calculateRankings
+);
 
 // Chạy server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-    console.log(`🚀 Server is running on http://localhost:${PORT}`);
+  console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });

@@ -729,10 +729,8 @@ const withdrawFromWallet = async (req, res) => {
               return;
             }
 
-            // Tạo mã tham chiếu cho giao dịch
             const referenceId = `WD${Date.now()}${Math.floor(Math.random() * 1000)}`
 
-            // Thêm vào bảng TransactionHistory
             const addTransactionQuery = `
               INSERT INTO TransactionHistory 
               (ShipperID, Type, Amount, Status, Description, PaymentMethod, ReferenceID)
