@@ -1,6 +1,7 @@
 const db = require('../config/DBConnect');
 const axios = require('axios');
 const crypto = require('crypto');
+const { createNotification } = require("./NotificationController"); 
 const getShipperAccount = async (req, res) => {
   try {
     const shipperId = req.params.id;
@@ -356,6 +357,7 @@ const depositToWallet = async (req, res) => {
     const { amount, isManualUpdate = false, orderId } = req.body;
 
     if (!shipperId || !amount || isNaN(amount) || amount <= 0) {
+      await createNotification(shipperId, `Nạp tiền thất bại: Số tiền ${amount} VNĐ hoặc ShipperID không hợp lệ. Trạng thái: Đã hủy.`);
       return res.status(400).json({
         success: false,
         message: 'ShipperID và số tiền hợp lệ là bắt buộc',
@@ -364,6 +366,8 @@ const depositToWallet = async (req, res) => {
 
     db.beginTransaction((err) => {
       if (err) {
+        createNotification(shipperId, `Nạp tiền thất bại: Lỗi hệ thống khi bắt đầu giao dịch với ${amount} VNĐ. Trạng thái: Đã hủy.`)
+          .catch((err) => console.error("Error creating notification:", err));
         console.error("Error starting transaction:", err);
         return res.status(500).json({
           success: false,
@@ -371,28 +375,30 @@ const depositToWallet = async (req, res) => {
         });
       }
 
-      // Kiểm tra shipper
       const checkShipperQuery = `SELECT ShipperID FROM Shippers WHERE ShipperID = ?`;
       db.query(checkShipperQuery, [shipperId], (err, shipperResults) => {
         if (err || shipperResults.length === 0) {
-          return db.rollback(() => {
+          db.rollback(async () => {
+            await createNotification(shipperId, `Nạp tiền thất bại: ${shipperResults.length === 0 ? 'Không tìm thấy shipper' : 'Lỗi kiểm tra shipper'} với ${amount} VNĐ. Trạng thái: Đã hủy.`);
             res.status(shipperResults.length === 0 ? 404 : 500).json({
               success: false,
               message: shipperResults.length === 0 ? 'Không tìm thấy shipper' : 'Lỗi khi kiểm tra shipper',
             });
           });
+          return;
         }
 
-        // Kiểm tra ví
         const checkWalletQuery = `SELECT Balance FROM EWallet WHERE ShipperID = ?`;
         db.query(checkWalletQuery, [shipperId], (err, walletResults) => {
           if (err) {
-            return db.rollback(() => {
+            db.rollback(async () => {
+              await createNotification(shipperId, `Nạp tiền thất bại: Lỗi kiểm tra ví với ${amount} VNĐ. Trạng thái: Đã hủy.`);
               res.status(500).json({
                 success: false,
                 message: 'Lỗi khi kiểm tra ví',
               });
             });
+            return;
           }
 
           const currentBalance = walletResults.length === 0 ? 0 : Number(walletResults[0].Balance);
@@ -401,12 +407,14 @@ const depositToWallet = async (req, res) => {
             const createWalletQuery = `INSERT INTO EWallet (ShipperID, Balance, LastUpdated) VALUES (?, 0, NOW())`;
             db.query(createWalletQuery, [shipperId], (err) => {
               if (err) {
-                return db.rollback(() => {
+                db.rollback(async () => {
+                  await createNotification(shipperId, `Nạp tiền thất bại: Lỗi tạo ví mới với ${amount} VNĐ. Trạng thái: Đã hủy.`);
                   res.status(500).json({
                     success: false,
                     message: 'Lỗi khi tạo ví mới',
                   });
                 });
+                return;
               }
               proceedWithDeposit(currentBalance);
             });
@@ -417,7 +425,6 @@ const depositToWallet = async (req, res) => {
 
         const proceedWithDeposit = (currentBalance) => {
           if (!isManualUpdate) {
-            // Khởi tạo thanh toán MoMo
             const momoConfig = {
               accessKey: 'F8BBA842ECF85',
               secretKey: 'K951B6PE1waDMi640xX08PD3vg6EkVlz',
@@ -466,56 +473,62 @@ const depositToWallet = async (req, res) => {
                 if (response.data.resultCode === 0) {
                   res.status(200).json({ success: true, payUrl: response.data.payUrl, orderId });
                 } else {
+                  createNotification(shipperId, `Nạp tiền thất bại: Lỗi MoMo với ${amount} VNĐ. Trạng thái: Đã hủy.`)
+                    .catch((err) => console.error("Error creating notification:", err));
                   res.status(400).json({
                     success: false,
                     message: response.data.message || 'Lỗi khi khởi tạo thanh toán MoMo',
                   });
                 }
               })
-              .catch((error) => {
+              .catch(async (error) => {
+                await createNotification(shipperId, `Nạp tiền thất bại: Lỗi gửi yêu cầu thanh toán MoMo với ${amount} VNĐ. Trạng thái: Đã hủy.`);
                 res.status(500).json({
                   success: false,
                   message: 'Lỗi khi gửi yêu cầu thanh toán MoMo',
                 });
               });
           } else {
-            // Xử lý cập nhật thủ công sau khi MoMo xác nhận
             if (!orderId) {
-              return db.rollback(() => {
+              db.rollback(async () => {
+                await createNotification(shipperId, `Nạp tiền thất bại: Thiếu orderId khi cập nhật thủ công với ${amount} VNĐ. Trạng thái: Đã hủy.`);
                 res.status(400).json({
                   success: false,
                   message: 'orderId là bắt buộc khi cập nhật thủ công',
                 });
               });
+              return;
             }
 
             const referenceId = orderId;
 
-            // Kiểm tra giao dịch đã tồn tại chưa
             const checkTransactionQuery = `
               SELECT TransactionID FROM TransactionHistory 
               WHERE ShipperID = ? AND ReferenceID = ? FOR UPDATE
             `;
             db.query(checkTransactionQuery, [shipperId, referenceId], (err, transactionResults) => {
               if (err) {
-                return db.rollback(() => {
+                db.rollback(async () => {
+                  await createNotification(shipperId, `Nạp tiền thất bại: Lỗi kiểm tra giao dịch với ${amount} VNĐ. Trạng thái: Đã hủy.`);
                   res.status(500).json({
                     success: false,
                     message: 'Lỗi khi kiểm tra giao dịch',
                   });
                 });
+                return;
               }
 
               if (transactionResults.length > 0) {
-                // Giao dịch đã tồn tại, không thêm mới, chỉ trả về số dư hiện tại
                 db.commit((err) => {
                   if (err) {
-                    return db.rollback(() => {
+                    db.rollback(async () => {
+                      await createNotification(shipperId, `Nạp tiền thất bại: Lỗi commit giao dịch với ${amount} VNĐ. Trạng thái: Đã hủy.`);
                       res.status(500).json({
                         success: false,
                         message: 'Lỗi khi commit giao dịch',
                       });
                     });
+                    return;
                   }
                   res.status(200).json({
                     success: true,
@@ -526,53 +539,56 @@ const depositToWallet = async (req, res) => {
                 return;
               }
 
-              // Cập nhật số dư ví
               const newBalance = currentBalance + Number(amount);
               const updateWalletQuery = `UPDATE EWallet SET Balance = ?, LastUpdated = NOW() WHERE ShipperID = ?`;
-              // Thêm giao dịch vào TransactionHistory
               const addTransactionQuery = `
-              INSERT INTO TransactionHistory 
-              (ShipperID, Type, Amount, Status, Description, PaymentMethod, ReferenceID)
-              VALUES (?, ?, ?, ?, ?, ?, ?)
-              ON DUPLICATE KEY UPDATE TransactionID = TransactionID
-            `;
-            const description = `Nạp tiền vào ví`;
-            const paymentMethod = 'momo';
+                INSERT INTO TransactionHistory 
+                (ShipperID, Type, Amount, Status, Description, PaymentMethod, ReferenceID)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE TransactionID = TransactionID
+              `;
+              const description = `Nạp tiền vào ví`;
+              const paymentMethod = 'momo';
               db.query(updateWalletQuery, [newBalance, shipperId], (err) => {
                 if (err) {
-                  return db.rollback(() => {
+                  db.rollback(async () => {
+                    await createNotification(shipperId, `Nạp tiền thất bại: Lỗi cập nhật ví với ${amount} VNĐ. Trạng thái: Đã hủy.`);
                     res.status(500).json({
                       success: false,
                       message: 'Lỗi khi cập nhật ví',
                     });
                   });
+                  return;
                 }
-
-                
 
                 db.query(
                   addTransactionQuery,
                   [shipperId, 'deposit', amount, 'success', description, paymentMethod, referenceId],
                   (err, result) => {
                     if (err) {
-                      return db.rollback(() => {
+                      db.rollback(async () => {
+                        await createNotification(shipperId, `Nạp tiền thất bại: Lỗi ghi lịch sử giao dịch với ${amount} VNĐ. Trạng thái: Đã hủy.`);
                         res.status(500).json({
                           success: false,
                           message: 'Lỗi khi thêm lịch sử giao dịch',
                         });
                       });
+                      return;
                     }
 
-                    db.commit((err) => {
+                    db.commit(async (err) => {
                       if (err) {
-                        return db.rollback(() => {
+                        db.rollback(async () => {
+                          await createNotification(shipperId, `Nạp tiền thất bại: Lỗi hoàn tất giao dịch với ${amount} VNĐ. Trạng thái: Đã hủy.`);
                           res.status(500).json({
                             success: false,
                             message: 'Lỗi khi hoàn tất giao dịch',
                           });
                         });
+                        return;
                       }
 
+                      await createNotification(shipperId, `Nạp tiền thành công: ${amount} VNĐ đã được thêm vào ví. Trạng thái: Hoàn tất.`);
                       res.status(200).json({
                         success: true,
                         data: { newBalance, transactionId: referenceId },
@@ -588,6 +604,7 @@ const depositToWallet = async (req, res) => {
     });
   } catch (error) {
     console.error('Server error:', error);
+    await createNotification(shipperId, `Nạp tiền thất bại: Lỗi server với ${amount} VNĐ. Trạng thái: Đã hủy.`);
     res.status(500).json({
       success: false,
       message: 'Lỗi server',
@@ -596,10 +613,11 @@ const depositToWallet = async (req, res) => {
 };
 const withdrawFromWallet = async (req, res) => {
   try {
-    const shipperId = req.params.id
-    const { amount, paymentMethod } = req.body
+    const shipperId = req.params.id;
+    const { amount, paymentMethod } = req.body;
 
     if (!shipperId || !amount || isNaN(amount) || amount <= 0) {
+      await createNotification(shipperId, `Rút tiền thất bại: Số tiền ${amount} VNĐ hoặc ShipperID không hợp lệ. Trạng thái: Đã hủy.`);
       return res.status(400).json({
         success: false,
         message: "ShipperID và số tiền hợp lệ là bắt buộc",
@@ -609,7 +627,9 @@ const withdrawFromWallet = async (req, res) => {
     // Bắt đầu transaction để đảm bảo tính toàn vẹn dữ liệu
     db.beginTransaction((err) => {
       if (err) {
-        console.error("Error starting transaction:", err)
+        createNotification(shipperId, `Rút tiền thất bại: Lỗi hệ thống khi bắt đầu giao dịch với ${amount} VNĐ. Trạng thái: Đã hủy.`)
+           .catch((err) => console.error("Error creating notification:", err));
+         console.error("Error starting transaction:", err);
         return res.status(500).json({
           success: false,
           message: "Lỗi khi bắt đầu giao dịch",
@@ -629,13 +649,15 @@ const withdrawFromWallet = async (req, res) => {
           })
         }
 
-        if (results.length === 0) {
-          return db.rollback(() => {
-            res.status(404).json({
+        if (err || results.length === 0) {
+          db.rollback(async () => {
+            await createNotification(shipperId, `Rút tiền thất bại: ${results.length === 0 ? 'Không tìm thấy shipper' : 'Lỗi kiểm tra shipper'} với ${amount} VNĐ. Trạng thái: Đã hủy.`);
+            res.status(results.length === 0 ? 404 : 500).json({
               success: false,
-              message: "Không tìm thấy shipper",
+              message: results.length === 0 ? "Không tìm thấy shipper" : "Lỗi khi kiểm tra shipper",
             })
           })
+          return;
         }
 
         // Kiểm tra số dư ví có đủ không
@@ -645,32 +667,37 @@ const withdrawFromWallet = async (req, res) => {
         `
         db.query(checkBalanceQuery, [shipperId], (err, balanceResults) => {
           if (err) {
-            return db.rollback(() => {
-              console.error("Error checking balance:", err)
+            db.rollback(async () => {
+              await createNotification(shipperId, `Rút tiền thất bại: Lỗi kiểm tra số dư với ${amount} VNĐ. Trạng thái: Đã hủy.`);
               res.status(500).json({
                 success: false,
                 message: "Lỗi khi kiểm tra số dư ví",
               })
             })
+            return;
           }
 
           if (balanceResults.length === 0) {
-            return db.rollback(() => {
+            db.rollback(async () => {
+              await createNotification(shipperId, `Rút tiền thất bại: Không tìm thấy ví với ${amount} VNĐ. Trạng thái: Đã hủy.`);
               res.status(404).json({
                 success: false,
                 message: "Không tìm thấy ví của shipper",
               })
             })
+            return;
           }
 
           const currentBalance = Number.parseFloat(balanceResults[0].Balance || 0)
           if (currentBalance < amount) {
-            return db.rollback(() => {
+            db.rollback(async () => {
+              await createNotification(shipperId, `Rút tiền thất bại: Số dư không đủ với ${amount} VNĐ. Trạng thái: Đã hủy.`);
               res.status(400).json({
                 success: false,
                 message: "Số dư trong ví không đủ để thực hiện giao dịch",
               })
             })
+            return;
           }
 
           // Cập nhật số dư ví
@@ -681,22 +708,25 @@ const withdrawFromWallet = async (req, res) => {
           `
           db.query(updateWalletQuery, [amount, shipperId], (err, result) => {
             if (err) {
-              return db.rollback(() => {
-                console.error("Error updating wallet:", err)
+              db.rollback(async () => {
+                await createNotification(shipperId, `Rút tiền thất bại: Lỗi cập nhật ví với ${amount} VNĐ. Trạng thái: Đã hủy.`);
                 res.status(500).json({
                   success: false,
                   message: "Lỗi khi cập nhật ví",
                 })
               })
+              return;
             }
 
             if (result.affectedRows === 0) {
-              return db.rollback(() => {
+              db.rollback(async () => {
+                await createNotification(shipperId, `Rút tiền thất bại: Không tìm thấy ví để cập nhật với ${amount} VNĐ. Trạng thái: Đã hủy.`);
                 res.status(404).json({
                   success: false,
                   message: "Không tìm thấy ví của shipper",
                 })
               })
+              return;
             }
 
             // Tạo mã tham chiếu cho giao dịch
@@ -717,41 +747,45 @@ const withdrawFromWallet = async (req, res) => {
               [shipperId, "withdraw", amount, "success", description, paymentMethodValue, referenceId],
               (err, transactionResult) => {
                 if (err) {
-                  return db.rollback(() => {
-                    console.error("Error adding transaction history:", err)
+                  db.rollback(async () => {
+                    await createNotification(shipperId, `Rút tiền thất bại: Lỗi ghi lịch sử giao dịch với ${amount} VNĐ. Trạng thái: Đã hủy.`);
                     res.status(500).json({
                       success: false,
                       message: "Lỗi khi thêm lịch sử giao dịch",
                     })
                   })
+                  return;
                 }
 
                 // Lấy số dư mới sau khi cập nhật
                 const getNewBalanceQuery = `SELECT Balance FROM EWallet WHERE ShipperID = ?`
                 db.query(getNewBalanceQuery, [shipperId], (err, results) => {
                   if (err) {
-                    return db.rollback(() => {
-                      console.error("Error fetching new balance:", err)
+                    db.rollback(async () => {
+                      await createNotification(shipperId, `Rút tiền thất bại: Lỗi lấy số dư mới với ${amount} VNĐ. Trạng thái: Đã hủy.`);
                       res.status(500).json({
                         success: false,
                         message: "Lỗi khi lấy số dư mới",
                       })
                     })
+                    return;
                   }
 
                   // Commit transaction
-                  db.commit((err) => {
+                  db.commit(async (err) => {
                     if (err) {
-                      return db.rollback(() => {
-                        console.error("Error committing transaction:", err)
+                      db.rollback(async () => {
+                        await createNotification(shipperId, `Rút tiền thất bại: Lỗi hoàn tất giao dịch với ${amount} VNĐ. Trạng thái: Đã hủy.`);
                         res.status(500).json({
                           success: false,
                           message: "Lỗi khi hoàn tất giao dịch",
                         })
                       })
+                      return;
                     }
 
                     // Trả về kết quả thành công
+                    await createNotification(shipperId, `Rút tiền thành công: ${amount} VNĐ đã được rút khỏi ví. Trạng thái: Hoàn tất.`);
                     res.status(200).json({
                       success: true,
                       data: {
@@ -768,7 +802,8 @@ const withdrawFromWallet = async (req, res) => {
       })
     })
   } catch (error) {
-    console.error("Server error:", error)
+    console.error("Server error:", error);
+    await createNotification(shipperId, `Rút tiền thất bại: Lỗi server với ${amount} VNĐ. Trạng thái: Đã hủy.`);
     res.status(500).json({
       success: false,
       message: "Lỗi server",
