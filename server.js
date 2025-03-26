@@ -69,7 +69,7 @@ const {getIncidentById,
     getShippers_Incident,
     exportReportExcel,
     exportReportPdf}=require('./controllers/IncidentOp');
-const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet,getOrderDetailsByDate,getTransactionHistory } = require("./controllers/ShipperAccount");
+const { getShipperAccount, cancelShipperAccount, updateShipper, getWalletData, getTotalWallet, depositToWallet,withdrawFromWallet,getOrderDetailsByDate,getTransactionHistory } = require("./controllers/ShipperAccount");
 const { getEscrowBalance, depositToEscrow, updateShipperStatus } = require("./controllers/EscrowController");
 
 const app = express();
@@ -107,7 +107,7 @@ app.get("/api/shipper/:id/raw-wallet", getWalletData);
 app.get("/api/shipper/:id/total-wallet", getTotalWallet);
 app.put("/api/shippers/:id", updateShipper);
 app.post('/api/shipper/:id/deposit', depositToWallet);
-
+app.post('/api/shipper/:id/withdraw', withdrawFromWallet);
 // Lấy số dư tài khoản shipper
 app.get("/api/getShipperBalance/:shipperID", authenticateToken, getShipperBalance);
 app.get('/api/shipper/:id/orders-by-date', getOrderDetailsByDate);

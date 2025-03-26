@@ -353,9 +353,8 @@ const getTotalWallet = async (req, res) => {
 const depositToWallet = async (req, res) => {
   try {
     const shipperId = req.params.id;
-    const { amount, isManualUpdate = false } = req.body;
+    const { amount, isManualUpdate = false, orderId } = req.body;
 
-    // Kiểm tra đầu vào cơ bản
     if (!shipperId || !amount || isNaN(amount) || amount <= 0) {
       return res.status(400).json({
         success: false,
@@ -363,7 +362,6 @@ const depositToWallet = async (req, res) => {
       });
     }
 
-    // Bắt đầu transaction để đảm bảo tính toàn vẹn dữ liệu
     db.beginTransaction((err) => {
       if (err) {
         console.error("Error starting transaction:", err);
@@ -373,33 +371,23 @@ const depositToWallet = async (req, res) => {
         });
       }
 
-      // Kiểm tra shipper tồn tại
+      // Kiểm tra shipper
       const checkShipperQuery = `SELECT ShipperID FROM Shippers WHERE ShipperID = ?`;
       db.query(checkShipperQuery, [shipperId], (err, shipperResults) => {
-        if (err) {
+        if (err || shipperResults.length === 0) {
           return db.rollback(() => {
-            console.error('Error checking shipper:', err);
-            res.status(500).json({
+            res.status(shipperResults.length === 0 ? 404 : 500).json({
               success: false,
-              message: 'Lỗi khi kiểm tra shipper',
-            });
-          });
-        }
-        if (shipperResults.length === 0) {
-          return db.rollback(() => {
-            res.status(404).json({
-              success: false,
-              message: 'Không tìm thấy shipper',
+              message: shipperResults.length === 0 ? 'Không tìm thấy shipper' : 'Lỗi khi kiểm tra shipper',
             });
           });
         }
 
-        // Kiểm tra ví tồn tại, nếu không thì tạo mới
+        // Kiểm tra ví
         const checkWalletQuery = `SELECT Balance FROM EWallet WHERE ShipperID = ?`;
         db.query(checkWalletQuery, [shipperId], (err, walletResults) => {
           if (err) {
             return db.rollback(() => {
-              console.error('Error checking wallet:', err);
               res.status(500).json({
                 success: false,
                 message: 'Lỗi khi kiểm tra ví',
@@ -407,30 +395,29 @@ const depositToWallet = async (req, res) => {
             });
           }
 
-          // Nếu không có ví, tạo mới với số dư ban đầu là 0
+          const currentBalance = walletResults.length === 0 ? 0 : Number(walletResults[0].Balance);
+
           if (walletResults.length === 0) {
             const createWalletQuery = `INSERT INTO EWallet (ShipperID, Balance, LastUpdated) VALUES (?, 0, NOW())`;
             db.query(createWalletQuery, [shipperId], (err) => {
               if (err) {
                 return db.rollback(() => {
-                  console.error('Error creating wallet:', err);
                   res.status(500).json({
                     success: false,
                     message: 'Lỗi khi tạo ví mới',
                   });
                 });
               }
-              proceedWithDeposit(0); // Tiếp tục với số dư ban đầu là 0
+              proceedWithDeposit(currentBalance);
             });
           } else {
-            proceedWithDeposit(walletResults[0].Balance); // Tiếp tục với số dư hiện tại
+            proceedWithDeposit(currentBalance);
           }
         });
 
-        // Hàm xử lý nạp tiền
         const proceedWithDeposit = (currentBalance) => {
           if (!isManualUpdate) {
-            // Giao dịch MoMo
+            // Khởi tạo thanh toán MoMo
             const momoConfig = {
               accessKey: 'F8BBA842ECF85',
               secretKey: 'K951B6PE1waDMi640xX08PD3vg6EkVlz',
@@ -477,7 +464,7 @@ const depositToWallet = async (req, res) => {
               })
               .then((response) => {
                 if (response.data.resultCode === 0) {
-                  res.status(200).json({ success: true, payUrl: response.data.payUrl });
+                  res.status(200).json({ success: true, payUrl: response.data.payUrl, orderId });
                 } else {
                   res.status(400).json({
                     success: false,
@@ -486,75 +473,114 @@ const depositToWallet = async (req, res) => {
                 }
               })
               .catch((error) => {
-                console.error('MoMo request error:', error);
                 res.status(500).json({
                   success: false,
                   message: 'Lỗi khi gửi yêu cầu thanh toán MoMo',
                 });
               });
           } else {
-            // Cập nhật số dư ví
-            const newBalance = Number(currentBalance) + Number(amount);
-            const updateWalletQuery = `UPDATE EWallet SET Balance = ?, LastUpdated = NOW() WHERE ShipperID = ?`;
-            db.query(updateWalletQuery, [newBalance, shipperId], (err, result) => {
+            // Xử lý cập nhật thủ công sau khi MoMo xác nhận
+            if (!orderId) {
+              return db.rollback(() => {
+                res.status(400).json({
+                  success: false,
+                  message: 'orderId là bắt buộc khi cập nhật thủ công',
+                });
+              });
+            }
+
+            const referenceId = orderId;
+
+            // Kiểm tra giao dịch đã tồn tại chưa
+            const checkTransactionQuery = `
+              SELECT TransactionID FROM TransactionHistory 
+              WHERE ShipperID = ? AND ReferenceID = ? FOR UPDATE
+            `;
+            db.query(checkTransactionQuery, [shipperId, referenceId], (err, transactionResults) => {
               if (err) {
                 return db.rollback(() => {
-                  console.error('Error updating wallet:', err);
                   res.status(500).json({
                     success: false,
-                    message: 'Lỗi khi cập nhật ví',
+                    message: 'Lỗi khi kiểm tra giao dịch',
                   });
                 });
               }
 
-              // Tạo mã tham chiếu cho giao dịch
-              const referenceId = `DP${Date.now()}${Math.floor(Math.random() * 1000)}`;
-
-              // Thêm vào bảng TransactionHistory
-              const addTransactionQuery = `
-                INSERT INTO TransactionHistory 
-                (ShipperID, Type, Amount, Status, Description, PaymentMethod, ReferenceID)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-              `;
-              const description = `Nạp tiền vào ví`;
-              const paymentMethod = 'manual';
-
-              db.query(
-                addTransactionQuery,
-                [shipperId, 'deposit', amount, 'success', description, paymentMethod, referenceId],
-                (err) => {
+              if (transactionResults.length > 0) {
+                // Giao dịch đã tồn tại, không thêm mới, chỉ trả về số dư hiện tại
+                db.commit((err) => {
                   if (err) {
                     return db.rollback(() => {
-                      console.error('Error adding transaction history:', err);
                       res.status(500).json({
                         success: false,
-                        message: 'Lỗi khi thêm lịch sử giao dịch',
+                        message: 'Lỗi khi commit giao dịch',
                       });
                     });
                   }
+                  res.status(200).json({
+                    success: true,
+                    data: { newBalance: currentBalance, transactionId: transactionResults[0].TransactionID },
+                    message: 'Giao dịch đã được xử lý trước đó',
+                  });
+                });
+                return;
+              }
 
-                  // Commit transaction
-                  db.commit((err) => {
+              // Cập nhật số dư ví
+              const newBalance = currentBalance + Number(amount);
+              const updateWalletQuery = `UPDATE EWallet SET Balance = ?, LastUpdated = NOW() WHERE ShipperID = ?`;
+              // Thêm giao dịch vào TransactionHistory
+              const addTransactionQuery = `
+              INSERT INTO TransactionHistory 
+              (ShipperID, Type, Amount, Status, Description, PaymentMethod, ReferenceID)
+              VALUES (?, ?, ?, ?, ?, ?, ?)
+              ON DUPLICATE KEY UPDATE TransactionID = TransactionID
+            `;
+            const description = `Nạp tiền vào ví`;
+            const paymentMethod = 'momo';
+              db.query(updateWalletQuery, [newBalance, shipperId], (err) => {
+                if (err) {
+                  return db.rollback(() => {
+                    res.status(500).json({
+                      success: false,
+                      message: 'Lỗi khi cập nhật ví',
+                    });
+                  });
+                }
+
+                
+
+                db.query(
+                  addTransactionQuery,
+                  [shipperId, 'deposit', amount, 'success', description, paymentMethod, referenceId],
+                  (err, result) => {
                     if (err) {
                       return db.rollback(() => {
-                        console.error('Error committing transaction:', err);
                         res.status(500).json({
                           success: false,
-                          message: 'Lỗi khi hoàn tất giao dịch',
+                          message: 'Lỗi khi thêm lịch sử giao dịch',
                         });
                       });
                     }
 
-                    res.status(200).json({
-                      success: true,
-                      data: {
-                        newBalance,
-                        transactionId: referenceId,
-                      },
+                    db.commit((err) => {
+                      if (err) {
+                        return db.rollback(() => {
+                          res.status(500).json({
+                            success: false,
+                            message: 'Lỗi khi hoàn tất giao dịch',
+                          });
+                        });
+                      }
+
+                      res.status(200).json({
+                        success: true,
+                        data: { newBalance, transactionId: referenceId },
+                      });
                     });
-                  });
-                }
-              );
+                  }
+                );
+              });
             });
           }
         };
@@ -751,24 +777,34 @@ const withdrawFromWallet = async (req, res) => {
 }
 const getTransactionHistory = async (req, res) => {
   try {
-    const shipperId = req.params.id
+    const shipperId = req.params.id;
 
-    // Kiểm tra xem người dùng có quyền truy cập dữ liệu của shipper này không
     if (req.user && req.user.id !== Number.parseInt(shipperId) && req.user.role !== "admin") {
       return res.status(403).json({
         success: false,
         message: "Bạn không có quyền truy cập dữ liệu này",
-      })
+      });
     }
 
     if (!shipperId) {
       return res.status(400).json({
         success: false,
         message: "ShipperID is required",
-      })
+      });
     }
 
-    // Truy vấn lịch sử giao dịch từ bảng TransactionHistory
+    // Lấy số dư hiện tại từ EWallet
+    const getBalanceQuery = `SELECT Balance FROM EWallet WHERE ShipperID = ?`;
+    const [balanceResults] = await new Promise((resolve, reject) => {
+      db.query(getBalanceQuery, [shipperId], (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
+
+    const currentBalance = balanceResults ? Number(balanceResults.Balance) : 0;
+
+    // Lấy lịch sử giao dịch
     const query = `
       SELECT 
         TransactionID as id,
@@ -783,30 +819,52 @@ const getTransactionHistory = async (req, res) => {
       WHERE ShipperID = ?
       ORDER BY TransactionDate DESC
       LIMIT 50
-    `
+    `;
 
-    db.query(query, [shipperId], (err, results) => {
-      if (err) {
-        console.error("Error fetching transaction history:", err)
-        return res.status(500).json({
-          success: false,
-          message: "Lỗi khi lấy lịch sử giao dịch",
-        })
-      }
+    const transactions = await new Promise((resolve, reject) => {
+      db.query(query, [shipperId], (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
 
-      return res.status(200).json({
-        success: true,
-        data: results,
-      })
-    })
+    // Tính toán số dư sau mỗi giao dịch
+    let runningBalance = currentBalance;
+    const transactionsWithBalance = transactions.map((transaction) => {
+      const amount = Number(transaction.amount);
+      const balanceAfterTransaction = 
+        transaction.type === "deposit" 
+          ? runningBalance - amount  // Trừ ngược lại để tính số dư trước giao dịch, sau đó cộng amount để có số dư sau giao dịch
+          : runningBalance + amount; // Cộng ngược lại để tính số dư trước giao dịch, sau đó trừ amount để có số dư sau giao dịch
+      
+      runningBalance = 
+        transaction.type === "deposit" 
+          ? runningBalance - amount 
+          : runningBalance + amount;
+
+      return {
+        ...transaction,
+        balanceAfterTransaction: transaction.type === "deposit" 
+          ? balanceAfterTransaction + amount 
+          : balanceAfterTransaction - amount,
+      };
+    }).reverse(); // Đảo ngược để tính từ giao dịch cũ nhất đến mới nhất, sau đó trả về thứ tự gốc
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        transactions: transactionsWithBalance.reverse(), // Đảo lại để giữ thứ tự mới nhất trước
+        currentBalance, // Trả về số dư hiện tại
+      },
+    });
   } catch (error) {
-    console.error("Server error:", error)
+    console.error("Server error:", error);
     res.status(500).json({
       success: false,
       message: "Lỗi server",
-    })
+    });
   }
-}
+};
 const getOrderDetailsByDate = async (req, res) => {
   try {
     const shipperId = req.params.id;
