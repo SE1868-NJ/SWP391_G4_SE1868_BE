@@ -105,7 +105,7 @@ const searchApprovedShippers = (req, res) => {
   const sql = `
     SELECT * FROM Shippers 
     WHERE (FullName LIKE ? OR PhoneNumber LIKE ? OR Email LIKE ?) 
-    AND (Status = 'Active' OR Status = 'Inactive')
+    AND (Status = 'Active' OR Status = 'Inactive' OR Status = 'PendingDepositEscrow')
   `;
 
   const searchQuery = `%${query}%`;
