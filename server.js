@@ -9,7 +9,9 @@ const {
 const {
   submitContact,
   getContacts,
+  resolveContact,
 } = require("./controllers/ContactController");
+
 const {
   getShippers,
   getPendingRegisterShippers,
@@ -201,6 +203,7 @@ app.get("/api/alerts", getAlerts);
 // Contact Routes
 app.post("/api/contact/submit", submitContact);
 app.get("/api/contact/list", getContacts);
+app.post("/api/contact/resolve/:id", resolveContact); // API mới để xử lý liên hệ
 
 app.put("/api/shippers/:id", updateShipper);
 
