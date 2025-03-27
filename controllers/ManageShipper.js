@@ -190,6 +190,14 @@ const searchCancelingShippers = (req, res) => {
 const changeShipperStatus = (req, res) => {
   const { id, newStatus, cancelReason, cancelTime } = req.body;
 
+  // Hàm tạo thông báo
+  const createNotification = (title, message, type) => {
+    const sql = "INSERT INTO adminnotification (Title, Message, Type) VALUES (?, ?, ?)";
+    db.query(sql, [title, message, type], (err) => {
+      if (err) console.error("Error creating notification:", err);
+    });
+  };
+
   // Trường hợp chuyển từ PendingCancel sang Inactive (hủy tài khoản)
   if (newStatus === 'Inactive' && cancelReason) {
     const sql = `
@@ -209,6 +217,13 @@ const changeShipperStatus = (req, res) => {
       if (result.affectedRows === 0) {
         return res.status(404).json({ message: "Không tìm thấy shipper hoặc shipper không ở trạng thái chờ hủy" });
       }
+
+      // Tạo thông báo khi hủy tài khoản
+      createNotification(
+        "Hủy tài khoản Shipper",
+        `Tài khoản Shipper ID ${id} đã bị hủy với lý do: ${cancelReason}`,
+        "warning"
+      );
 
       res.json({ 
         message: "Đã hủy tài khoản shipper thành công",
@@ -274,6 +289,13 @@ const changeShipperStatus = (req, res) => {
             return res.status(404).json({ message: "Không thể cập nhật thông tin shipper" });
           }
 
+          // Tạo thông báo khi cập nhật thông tin
+          createNotification(
+            "Cập nhật Shipper",
+            `Thông tin Shipper ID ${id} đã được cập nhật và kích hoạt`,
+            "success"
+          );
+
           res.json({ 
             message: "Đã cập nhật thông tin và chuyển trạng thái shipper thành công",
             status: newStatus
@@ -291,6 +313,13 @@ const changeShipperStatus = (req, res) => {
           if (result.affectedRows === 0) {
             return res.status(404).json({ message: "Không tìm thấy shipper" });
           }
+
+          // Tạo thông báo cho các trạng thái khác
+          createNotification(
+            "Thay đổi trạng thái Shipper",
+            `Trạng thái Shipper ID ${id} đã được thay đổi thành ${newStatus}`,
+            "info"
+          );
 
           res.json({ 
             message: "Đã cập nhật trạng thái shipper thành công",
@@ -311,6 +340,13 @@ const changeShipperStatus = (req, res) => {
       if (result.affectedRows === 0) {
         return res.status(404).json({ message: "Không tìm thấy shipper" });
       }
+
+      // Tạo thông báo cho các trạng thái khác
+      createNotification(
+        "Thay đổi trạng thái Shipper",
+        `Trạng thái Shipper ID ${id} đã được thay đổi thành ${newStatus}`,
+        "info"
+      );
 
       res.json({ 
         message: "Đã cập nhật trạng thái shipper thành công",
