@@ -1,11 +1,10 @@
 const db = require("../config/DBConnect");
 const { createAdminNotification } = require("./AdminNotificationController");
-const { createNotification } = require("./NotificationController");
+
 // Báo cáo sự cố đơn hàng
 const createOrderReport = (req, res) => {
     const { orderId, incidentCategory, description } = req.body;
 
-    // Kiểm tra dữ liệu đầu vào
     if (!orderId || !incidentCategory || !description) {
         return res.status(400).json({
             success: false,
@@ -13,7 +12,6 @@ const createOrderReport = (req, res) => {
         });
     }
 
-    // Truy vấn để lấy thông tin đơn hàng
     const orderQuery = "SELECT ShipperID FROM orders WHERE OrderID = ?";
     db.query(orderQuery, [orderId], (orderErr, orderResults) => {
         if (orderErr) {
@@ -32,7 +30,6 @@ const createOrderReport = (req, res) => {
 
         const shipperID = orderResults[0].ShipperID;
 
-        // Thêm báo cáo sự cố
         const insertQuery = `
             INSERT INTO incidentreports 
             (ShipperID, OrderID, IncidentType, Description, IncidentCategory, Status) 
@@ -46,10 +43,6 @@ const createOrderReport = (req, res) => {
                     message: "Lỗi tạo báo cáo"
                 });
             }
-            // Tạo thông báo cho shipper
-            const message = `Bạn đã gửi báo cáo sự cố cho đơn hàng ${orderId}. Danh mục: ${incidentCategory}. Trạng thái: Đang chờ xử lý.`;
-            createNotification(shipperID, message)
-                .catch(err => console.error("Lỗi tạo thông báo cho shipper:", err));
 
             res.status(201).json({
                 success: true,
@@ -64,7 +57,6 @@ const createOrderReport = (req, res) => {
 const createShipperReport = (req, res) => {
     const { incidentCategory, description, shipperId } = req.body;
 
-    // Kiểm tra dữ liệu đầu vào
     if (!incidentCategory || !description || !shipperId) {
         return res.status(400).json({
             success: false,
@@ -72,7 +64,6 @@ const createShipperReport = (req, res) => {
         });
     }
 
-    // Thêm báo cáo sự cố
     const insertQuery = `
         INSERT INTO incidentreports 
         (ShipperID, IncidentType, Description, IncidentCategory, Status) 
@@ -86,10 +77,6 @@ const createShipperReport = (req, res) => {
                 message: "Lỗi tạo báo cáo"
             });
         }
-        // Tạo thông báo cho shipper
-        const message = `Bạn đã gửi báo cáo sự cố. Danh mục: ${incidentCategory}. Trạng thái: Đang chờ xử lý.`;
-        createNotification(shipperId, message)
-            .catch(err => console.error("Lỗi tạo thông báo cho shipper:", err));
 
         res.status(201).json({
             success: true,
@@ -184,12 +171,27 @@ const updateReportStatus = (req, res) => {
                 message: "Không tìm thấy báo cáo"
             });
         }
-        // Tạo thông báo
+
+        // Tạo thông báo bằng hàm từ AdminNotificationController
         const notification = {
             Title: "Cập Nhật Báo Cáo",
             Message: `Báo cáo (ID: ${reportId}) đã được cập nhật trạng thái thành ${status}.`,
-            Type: "info",
+            Type: "info"
         };
+
+        // Gọi hàm createAdminNotification
+        createAdminNotification(
+            { body: notification },
+            {
+                status: (code) => ({
+                    json: (data) => {
+                        if (code !== 201) {
+                            console.error("Lỗi khi tạo thông báo:", data.message);
+                        }
+                    }
+                })
+            }
+        );
 
         res.json({
             success: true,
@@ -200,7 +202,6 @@ const updateReportStatus = (req, res) => {
 
 // Lấy báo cáo đơn hàng cho customer
 const getCustomerOrderReports = (req, res) => {
-    //const { customerId } = req.query; 
     const customerId = req.user.customerId;
 
     const query = `
