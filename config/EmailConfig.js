@@ -1,11 +1,11 @@
 const nodemailer = require('nodemailer');
 
-// Cấu hình transporter cho Gmail (bạn có thể thay đổi SMTP khác)
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER, // Sử dụng biến môi trường
-    pass: process.env.EMAIL_PASS  // Sử dụng mật khẩu ứng dụng
+    user: process.env.EMAIL_USER, 
+    pass: process.env.EMAIL_PASS 
   }
 });
 

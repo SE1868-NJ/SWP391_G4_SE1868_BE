@@ -1,5 +1,4 @@
 const db = require('../config/DBConnect');
-const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
 // Lưu trữ token tạm thời (trong thực tế nên dùng Redis)
@@ -10,7 +9,7 @@ const generateResetToken = () => {
   return crypto.randomBytes(32).toString('hex');
 };
 
-const forgotPassword = (req, res) => {
+exports.forgotPassword = (req, res) => {
   const { email } = req.body;
 
   // Kiểm tra email
@@ -60,7 +59,7 @@ const forgotPassword = (req, res) => {
   });
 };
 
-const resetPassword = (req, res) => {
+exports.resetPassword = (req, res) => {
   const { email, resetToken, newPassword } = req.body;
 
   // Kiểm tra đầu vào
@@ -80,13 +79,9 @@ const resetPassword = (req, res) => {
     });
   }
 
-  // Mã hóa mật khẩu mới
-  const saltRounds = 10;
-  const hashedPassword = bcrypt.hashSync(newPassword, saltRounds);
-
-  // Cập nhật mật khẩu
+  // Cập nhật mật khẩu trực tiếp
   const sql = "UPDATE shippers SET Password = ? WHERE Email = ?";
-  db.query(sql, [hashedPassword, email], (err, results) => {
+  db.query(sql, [newPassword, email], (err, results) => {
     if (err) {
       console.error("Lỗi cập nhật MySQL:", err);
       return res.status(500).json({ 
@@ -104,5 +99,3 @@ const resetPassword = (req, res) => {
     });
   });
 };
-
-module.exports = { forgotPassword, resetPassword };

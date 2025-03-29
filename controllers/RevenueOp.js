@@ -376,12 +376,12 @@ const getPayments = (req, res) => {
 
   let query = `
     SELECT 
-      PaymentID as id, 
-      PaymentDate as date, 
+      TransactionID as id, 
+      TransactionDate as date, 
       Amount as amount, 
       PaymentMethod as method, 
       Status as status
-    FROM Payments
+    FROM transactionhistory
     WHERE 1=1
   `;
 
