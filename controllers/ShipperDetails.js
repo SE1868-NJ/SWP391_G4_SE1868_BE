@@ -257,7 +257,7 @@ const approveShipper = (req, res) => {
 
       const shipperName = checkResult[0].FullName;
       const updateSql =
-        "UPDATE Shippers SET Status = 'Active' WHERE ShipperID = ?";
+        "UPDATE Shippers SET Status = 'PendingDepositEscrow' WHERE ShipperID = ?";
       db.query(updateSql, [shipperId], (updateErr, updateResult) => {
         if (updateErr) {
           return res.status(500).json({
